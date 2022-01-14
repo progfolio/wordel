@@ -114,7 +114,7 @@ The following anaphoric bindings are provided:
    - `chars` a list of each character in WORD.
    - `char`  the current character of WORD.
    - `i`     the index of the current character."
-  (declare (indent 1) (debug (symbolp &rest form)))
+  (declare (indent 1) (debug t))
   `(let* ((word  ,word)
           (chars (split-string word "" 'omit-nulls)))
      (dotimes (i (length chars))
