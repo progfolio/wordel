@@ -83,6 +83,10 @@ These are deleted from a puzzle word character."
          :height 3.0)))
   "Default face for a wordel letter.")
 
+(defface wordel-error
+  '((t ( :inherit compilation-error)))
+  "Default face for a wordel error message.")
+
 (defun wordel-legal-p (word)
   "Return t if WORD is a legal word, nil otherwise."
   (let* ((min (if (consp wordel-word-length)
@@ -202,7 +206,23 @@ COLUMNs are zero indexed."
     (setq wordel--game-in-progress nil)
     (quit-window 'kill window)))
 
-(defalias 'wordel--display-error #'message)
+(defun wordel--display-message (string &rest objects)
+  "Display a message in the UI message area.
+STRING and OBJECTS are passed to `format', which see."
+  (save-excursion
+    (goto-char (point-max))
+    (if-let ((area (text-property-search-backward 'message-area)))
+        (with-silent-modifications
+          (put-text-property (prop-match-beginning area) (prop-match-end area)
+                             'display (apply #'format string objects)))
+      (error "Unable to locate message area"))))
+
+(defun wordel--display-error (string &rest objects)
+  "Display an error in the UI message area.
+STRING and OBJECTS are passed to `format', which see."
+  (wordel--display-message
+   "%s" (propertize (apply #'format string objects) 'face 'wordel-error)))
+
 (defun wordel-read-word (words)
   "Read word and test against WORDS."
   (let ((index 0)
@@ -215,6 +235,7 @@ COLUMNs are zero indexed."
       ;; do the trick on its own. ~ NV 2022-01-14
       (let ((event (let ((inhibit-quit t))
                      (read-event "wordel reading events. Press C-g to quit game."))))
+        (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
           (?\C-g  (setq done t result nil))
           ('return
@@ -227,7 +248,8 @@ COLUMNs are zero indexed."
                       (when (> index 0) (cl-decf index)))
           ((pred characterp)
            (let ((s (char-to-string event)))
-             (unless (string-match-p wordel-illegal-characters s)
+             (if (string-match-p wordel-illegal-characters s)
+                 (wordel--display-error "Illegal character: %S" s)
                (wordel--display-char (upcase s))
                (when (< index (1- wordel-word-length))
                  (cl-incf index))))))))
@@ -263,7 +285,8 @@ COLUMNs are zero indexed."
                    (when (> attempts-left 0)
                      (append
                       (list current-row)
-                      (make-list (1- attempts-left) blank-row))))))
+                      (make-list (1- attempts-left) blank-row)))))
+          (insert "\n\n" (propertize " " 'message-area t)))
         (pcase outcome
           ('win  (message "HORAY") (setq wordel--game-in-progress nil))
           ('lose (message "YOU LOST. Word was %S" word)
