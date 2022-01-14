@@ -288,17 +288,12 @@ STRING and OBJECTS are passed to `format', which see."
                       (make-list (1- attempts-left) blank-row)))))
           (insert "\n\n" (propertize " " 'message-area t)))
         (pcase outcome
-          ('win  (message "HORAY") (setq wordel--game-in-progress nil))
-          ('lose (message "YOU LOST. Word was %S" word)
-                 (setq wordel--game-in-progress nil)
-                 (if (y-or-n-p (format "You LOST! Word was %S. Play again?" word))
-                     (wordel--new-game)
-                   (wordel-quit)))
+          ('win  (wordel--display-message "You WON!")
+                 (setq wordel--game-in-progress nil))
+          ('lose (wordel--display-message "YOU LOST! Word was %S" word)
+                 (setq wordel--game-in-progress nil))
           ('quit (setq wordel--game-in-progress nil)
-                 (if (y-or-n-p (format "The word was %S, quitter. Play again?"
-                                       word))
-                     (wordel--new-game)
-                   (wordel-quit)))
+                 (wordel--display-message "The word was %S, quitter." word))
           (_
            (cond
             ((and attempts
