@@ -126,23 +126,25 @@ The following anaphoric bindings are provided:
 IF BOX is non-nil, use that for the character BOX face instead of `wordel-box'."
   (let ((subjects (split-string subject "" 'omit-nulls))
         result
+        matched
         seen)
     (wordel-dochar guess
       (push
        (propertize
         char 'face
         (list :inherit
-              (delq nil (list
-                         (or box 'wordel-box)
-                         (cond
-                          ((or (string= char " ")
-                               (and (member char seen)
-                                    (not (string-match-p char (nth i subjects)))))
-                           nil)
-                          ((string-match-p char (nth i subjects))    'wordel-correct)
-                          ((string-match-p char subject)             'wordel-almost)
-                          (t                                         nil))
-                         'wordel-default))))
+              (delq nil
+                    (list
+                     (or box 'wordel-box)
+                     (cond
+                      ((string-match-p char (nth i subjects))
+                       (push char matched) 'wordel-correct)
+                      ((and (string-match-p char subject)
+                            (not (string-match-p char guess (+ i 1)))
+                            (not (member char matched)))
+                       'wordel-almost)
+                      (t nil))
+                     'wordel-default))))
        result)
       (push char seen))
     (nreverse result)))
