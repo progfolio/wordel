@@ -24,6 +24,7 @@
 
 ;;; Code:
 (require 'cl-lib)
+(require 'text-property-search)
 
 ;;; Custom Options
 (defgroup wordel nil
