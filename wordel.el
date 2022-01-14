@@ -276,7 +276,7 @@ STRING and OBJECTS are passed to `format', which see."
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
       (while wordel--game-in-progress
-        (read-only-mode)
+        (wordel-mode)
         (goto-char (point-min))
         (with-silent-modifications
           (erase-buffer)
@@ -312,6 +312,17 @@ STRING and OBJECTS are passed to `format', which see."
                (if (null guess)
                    (setq outcome 'quit)
                  (push (wordel--row (wordel--compare guess word)) attempts)))))))))))
+
+(define-derived-mode wordel-mode special-mode "Wordel"
+  "A word game based on 'Wordle' and/or 'Lingo'.
+
+\\{wordel-mode-map}")
+
+;;; Key bindngs
+(define-key wordel-mode-map (kbd "r") 'wordel)
+
+;;@REMOVE:
+(evil-make-intercept-map wordel-mode-map)
 
 (defun wordel ()
   "Play wordel."
