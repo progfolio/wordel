@@ -274,7 +274,7 @@ STRING and OBJECTS are passed to `format', which see."
          (wordel--game-in-progress t)
          (outcome nil))
     (with-current-buffer (get-buffer-create wordel-buffer)
-      (pop-to-buffer wordel-buffer)
+      (pop-to-buffer-same-window wordel-buffer)
       (while wordel--game-in-progress
         (read-only-mode)
         (goto-char (point-min))
