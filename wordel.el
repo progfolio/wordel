@@ -241,7 +241,8 @@ STRING and OBJECTS are passed to `format', which see."
     result))
 
 (defun wordel--new-game ()
-  "Initialize a new game."
+  "Initialize a new game.
+Return game outcome plist."
   (let* ((words (or (funcall wordel-words-function)
                     (error "Unable to retrieve candidate words with %S"
                            wordel-words-function)))
@@ -251,7 +252,8 @@ STRING and OBJECTS are passed to `format', which see."
          (attempts 0)
          (rows nil)
          (blanks (make-list (length word) " "))
-         (outcome nil))
+         (outcome nil)
+         (start-time (current-time)))
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
       (while (not outcome)
@@ -286,7 +288,13 @@ STRING and OBJECTS are passed to `format', which see."
           ('win  (wordel--display-message "You WON!"))
           ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
           ('quit (wordel--display-message "The word was %S, quitter." word))))
-      outcome)))
+      (list
+       :outcome  outcome
+       :attempts attempts
+       :word word
+       :rows rows
+       :start-time start-time
+       :end-time (current-time)))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
@@ -323,22 +331,27 @@ STRING and OBJECTS are passed to `format', which see."
   (let ((wordlen 3)
         (attempts 11)
         (rounds 0)
-        (outcome nil))
-    (while (not (member outcome '(quit lose champion)))
-      (setq outcome
-            (let ((wordel-word-length   (cl-incf wordlen))
-                  (wordel-attempt-limit (if (zerop (mod rounds 3))
-                                            (cl-decf attempts)
-                                          attempts)))
-              (condition-case _
-                  (wordel--new-game)
-                ((error) 'champion))))
+        (outcomes nil))
+    (while (not (member (plist-get (car outcomes) :outcome) '(quit lose champion)))
+      (push
+       (let ((wordel-word-length   (cl-incf wordlen))
+             (wordel-attempt-limit (if (zerop (mod rounds 3))
+                                       (cl-decf attempts)
+                                     attempts)))
+         (condition-case _ ; The dictionary has been exhausted.
+             (wordel--new-game)
+           ((error) (setf (car outcomes) (plist-put (car outcomes) :outcome 'champion)))))
+       outcomes)
       (cl-incf rounds))
-    (apply #'wordel-marathon--append-message
-           (pcase outcome
-             ('quit     (list "\nHad enough, eh? Final Score: %d" (cl-decf rounds)))
-             ('lose     (list"\nFinal Score: %d" rounds))
-             ('champion (list "\nYOU BEAT THE DICTIONARY! Final Score: %d" rounds))))))
+    ;;@TODO: print more stats about marathon
+    (apply #'wordel--display-message
+           (let* ((outcome (car outcomes))
+                  (word (plist-get outcome :word)))
+             (pcase (plist-get outcome :outcome)
+               ('quit     (list "Had enough, eh? Word was %S. Final Score: %d" word
+                                (cl-decf rounds)))
+               ('lose     (list "Sorry. Word was %S. Final Score: %d" word rounds))
+               ('champion (list "YOU BEAT THE DICTIONARY! Final Score: %d" rounds)))))))
 
 
 (provide 'wordel)
