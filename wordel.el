@@ -58,8 +58,8 @@ These are deleted from a puzzle word character."
   :type 'regexp)
 
 ;;;; Variables
-(defvar wordel--game-in-progress nil "Whether or not the game is active.")
-(defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
+(defvar wordel--game-in-progress nil        "Whether or not the game is active.")
+(defvar wordel-buffer            "*wordel*" "Name of the wordel buffer.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -83,10 +83,7 @@ These are deleted from a puzzle word character."
   "Face for space between letter boxes.")
 
 (defface wordel-default
-  '((t ( :weight ultra-bold
-         :background "#3A3A3C"
-         :foreground "#D7DADC"
-         :height 3.0)))
+  '((t ( :weight ultra-bold :background "#3A3A3C" :foreground "#D7DADC" :height 3.0)))
   "Default face for a wordel letter.")
 
 (defface wordel-error
@@ -109,9 +106,8 @@ These are deleted from a puzzle word character."
   "Return a puzzle word from `wordel-word-file'."
   (with-temp-buffer
     (insert-file-contents wordel-word-file)
-    (mapcar #'upcase
-            (cl-remove-if-not #'wordel-legal-p
-                              (split-string (buffer-string) "\n")))))
+    (mapcar #'upcase (cl-remove-if-not #'wordel-legal-p
+                                       (split-string (buffer-string) "\n")))))
 
 (defun wordel--word (candidates)
   "Select a random word from CANDIDATES."
@@ -125,17 +121,16 @@ These are deleted from a puzzle word character."
     (cl-loop for i from 0 to (1- (length guesses))
              for g = (nth i guesses)
              for s = (nth i subjects)
-             do (put-text-property
-                 0 1 'hint
-                 (cond
-                  ((string-match-p g s)
-                   (push g matches) 'wordel-correct)
-                  ((and (string-match-p g subject)
-                        (not (string-match-p g guess (+ i 1)))
-                        (not (member g matches)))
-                   'wordel-almost)
-                  (t nil))
-                 g)
+             do (put-text-property 0 1 'hint
+                                   (cond
+                                    ((string-match-p g s)
+                                     (push g matches) 'wordel-correct)
+                                    ((and (string-match-p g subject)
+                                          (not (string-match-p g guess (+ i 1)))
+                                          (not (member g matches)))
+                                     'wordel-almost)
+                                    (t nil))
+                                   g)
              collect g)))
 
 (defun wordel--pad (char)
@@ -182,8 +177,7 @@ COLUMNs are zero indexed."
   "Display CHAR in current box."
   (with-current-buffer wordel-buffer
     (with-silent-modifications
-      (let ((p (point)))
-        (put-text-property p (1+ p) 'display char)))))
+      (let ((p (point))) (put-text-property p (1+ p) 'display char)))))
 
 (defun wordel--current-word ()
   "Return current row's word."
@@ -300,7 +294,7 @@ STRING and OBJECTS are passed to `format', which see."
           (setq wordel--game-in-progress nil)
           (pcase outcome
             ('win  (wordel--display-message "You WON!"))
-            ('lose (wordel--display-message "YOU LOST! Word was %S" word))
+            ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
             ('quit (wordel--display-message "The word was %S, quitter." word))))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
