@@ -191,15 +191,6 @@ COLUMNs are zero indexed."
                      ""))
                  (split-string row "" 'omit-nils)))))
 
-(defun wordel-quit ()
-  "Quit wordel."
-  (interactive)
-  (when-let ((buffer (get-buffer wordel-buffer))
-             ((buffer-live-p buffer))
-             (window (get-buffer-window buffer t)))
-    (setq wordel--game-in-progress nil)
-    (quit-window 'kill window)))
-
 (defun wordel--display-message (string &rest objects)
   "Display a message in the UI message area.
 STRING and OBJECTS are passed to `format', which see."
