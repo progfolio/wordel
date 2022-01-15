@@ -193,13 +193,14 @@ COLUMNs are zero indexed."
 (defun wordel--display-message (string &rest objects)
   "Display a message in the UI message area.
 STRING and OBJECTS are passed to `format', which see."
-  (save-excursion
-    (goto-char (point-max))
-    (if-let ((area (text-property-search-backward 'message-area)))
-        (with-silent-modifications
-          (put-text-property (prop-match-beginning area) (prop-match-end area)
-                             'display (apply #'format string objects)))
-      (error "Unable to locate message area"))))
+  (with-current-buffer wordel-buffer
+    (save-excursion
+      (goto-char (point-min))
+      (if-let ((area (text-property-search-forward 'message-area)))
+          (with-silent-modifications
+            (put-text-property (prop-match-beginning area) (prop-match-end area)
+                               'display (apply #'format string objects)))
+        (error "Unable to locate message area")))))
 
 (defun wordel--display-error (string &rest objects)
   "Display an error in the UI message area.
