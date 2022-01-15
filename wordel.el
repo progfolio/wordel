@@ -32,7 +32,7 @@
 
 ;;; Custom Options
 (defgroup wordel nil
-  "Elisp implementation of `wordle` aka `lingo`"
+  "Elisp implementation of `wordle` aka `lingo`."
   :group 'games
   :prefix "wordel-")
 
@@ -304,7 +304,7 @@ STRING and OBJECTS are passed to `format', which see."
 
 (defun wordel-marathon--append-message (string &rest objects)
   "Append STRING to game message.
-STRING and OBJECT are passed to `format', which see."
+STRING and OBJECTS are passed to `format', which see."
   (with-current-buffer wordel-buffer
     (save-excursion
       (with-silent-modifications
@@ -318,6 +318,7 @@ STRING and OBJECT are passed to `format', which see."
 
 ;;;###autoload
 (defun wordel-marathon ()
+  "Run a marathon of wordel rounds."
   (interactive)
   (let ((wordlen 3)
         (attempts 11)
