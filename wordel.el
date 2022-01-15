@@ -58,8 +58,7 @@ These are deleted from a puzzle word character."
   :type 'regexp)
 
 ;;;; Variables
-(defvar wordel--game-in-progress nil        "Whether or not the game is active.")
-(defvar wordel-buffer            "*wordel*" "Name of the wordel buffer.")
+(defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -247,11 +246,10 @@ STRING and OBJECTS are passed to `format', which see."
          (attempts 0)
          (rows nil)
          (blanks (make-list (length word) " "))
-         (wordel--game-in-progress t)
          (outcome nil))
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
-      (while wordel--game-in-progress
+      (while (not outcome)
         (wordel-mode)
         (goto-char (point-min))
         (with-silent-modifications
@@ -272,17 +270,17 @@ STRING and OBJECTS are passed to `format', which see."
           (setq outcome 'lose))
          (t (cl-incf attempts)
             (let ((guess (wordel-read-word words)))
-              (if (null guess)
-                  (setq outcome 'quit)
-                (setq rows (append
-                            rows
-                            (list (wordel--row (wordel--comparison guess word)))))))))
-        (when outcome
-          (setq wordel--game-in-progress nil)
-          (pcase outcome
-            ('win  (wordel--display-message "You WON!"))
-            ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
-            ('quit (wordel--display-message "The word was %S, quitter." word))))))))
+              (if guess
+                  (setq rows (append
+                              rows
+                              (list (wordel--row (wordel--comparison guess word)))))
+                (setq outcome 'quit)
+                ;; Leaving cursor in the board gives false impression that game is on.
+                (goto-char (point-max))))))
+        (pcase outcome
+          ('win  (wordel--display-message "You WON!"))
+          ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
+          ('quit (wordel--display-message "The word was %S, quitter." word)))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
