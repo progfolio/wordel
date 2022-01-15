@@ -276,8 +276,8 @@ Return a game plist."
          (wordel-word-length (length word)))
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
+      (wordel-mode)
       (while (not outcome)
-        (wordel-mode)
         (goto-char (point-min))
         (with-silent-modifications
           (erase-buffer)
