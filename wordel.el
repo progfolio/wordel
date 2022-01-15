@@ -311,9 +311,6 @@ STRING and OBJECTS are passed to `format', which see."
 ;;; Key bindngs
 (define-key wordel-mode-map (kbd "r") 'wordel)
 
-;;@REMOVE:
-(evil-make-intercept-map wordel-mode-map)
-
 (defun wordel ()
   "Play wordel."
   (interactive)
