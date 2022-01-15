@@ -125,16 +125,17 @@ These are deleted from a puzzle word character."
     (cl-loop for i from 0 to (1- (length guesses))
              for g = (nth i guesses)
              for s = (nth i subjects)
-             do (put-text-property 0 1 'hint
-                                   (cond
-                                    ((string-match-p g s)
-                                     (push g matches) 'wordel-correct)
-                                    ((and (string-match-p g subject)
-                                          (not (string-match-p g guess (+ i 1)))
-                                          (not (member g matches)))
-                                     'wordel-almost)
-                                    (t nil))
-                                   g)
+             do (put-text-property
+                 0 1 'hint
+                 (cond
+                  ((string-match-p g s)
+                   (push g matches) 'wordel-correct)
+                  ((and (string-match-p g subject)
+                        (not (string-match-p g guess (+ i 1)))
+                        (not (member g matches)))
+                   'wordel-almost)
+                  (t nil))
+                 g)
              collect g)))
 
 (defun wordel--pad (char)
