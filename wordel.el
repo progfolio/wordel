@@ -260,8 +260,8 @@ STRING and OBJECTS are passed to `format', which see."
                            wordel-words-function)))
          (word (or (wordel--word words)
                    (error "Unable to find a puzzle word")))
-         ;;@TODO: count up instead of down
-         (attempts wordel-attempt-limit)
+         (limit wordel-attempt-limit)
+         (attempts 0)
          (rows nil)
          (blanks (make-list (length word) " "))
          (wordel--game-in-progress t)
@@ -275,35 +275,31 @@ STRING and OBJECTS are passed to `format', which see."
           (erase-buffer)
           (insert (wordel--board
                    (append rows
-                           (when (> attempts 0)
+                           (when (< attempts limit)
                              (append
                               (list (wordel--row blanks 'current))
-                              (make-list (1- attempts) (wordel--row blanks))))))
+                              (make-list (- limit (1+ attempts)) (wordel--row blanks))))))
                   "\n\n"
                   (propertize " " 'message-area t)))
-        (pcase outcome
-          ('win  (wordel--display-message "You WON!")
-                 (setq wordel--game-in-progress nil))
-          ('lose (wordel--display-message "YOU LOST! Word was %S" word)
-                 (setq wordel--game-in-progress nil))
-          ('quit (setq wordel--game-in-progress nil)
-                 (wordel--display-message "The word was %S, quitter." word))
-          (_
-           (cond
-            ((and rows
-                  (string= (replace-regexp-in-string " " "" (car (last rows))) word))
-             (setq outcome 'win))
-            ((zerop attempts)
-             (setq outcome 'lose))
-            (t (cl-decf attempts)
-               (let ((guess (wordel-read-word words)))
-                 (if (null guess)
-                     (setq outcome 'quit)
-                   (setq rows
-                         (append
-                          rows
-                          (list (wordel--row
-                                 (wordel--comparison guess word)))))))))))))))
+        (cond
+         ((and (> attempts 0)
+               (string= (replace-regexp-in-string " " "" (car (last rows))) word))
+          (setq outcome 'win))
+         ((>= attempts limit)
+          (setq outcome 'lose))
+         (t (cl-incf attempts)
+            (let ((guess (wordel-read-word words)))
+              (if (null guess)
+                  (setq outcome 'quit)
+                (setq rows (append
+                            rows
+                            (list (wordel--row (wordel--comparison guess word)))))))))
+        (when outcome
+          (setq wordel--game-in-progress nil)
+          (pcase outcome
+            ('win  (wordel--display-message "You WON!"))
+            ('lose (wordel--display-message "YOU LOST! Word was %S" word))
+            ('quit (wordel--display-message "The word was %S, quitter." word))))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
