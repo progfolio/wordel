@@ -1,0 +1,22 @@
+#+title: Wordel: Wordle (aka Lingo) in Emacs
+
+[[./demo.gif]]
+
+* Install
+
+** With straight.el
+
+#+begin_src emacs-lisp :lexical t
+(straight-use-package '(wordel :host github :repo "progfolio/wordel" :files (:defaults "words.txt")))
+#+end_src
+
+** Manually
+- Clone this repo into your load-path
+- =(require 'wordel)=
+- =M-x wordel=
+
+* Notice:
+
+I wrote this for fun over the past couple of days.
+Expect bugs.
+
