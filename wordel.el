@@ -1,9 +1,13 @@
-;;; wordel.el --- "Wordle" aka "Lingo" in Emacs      -*- lexical-binding: t; -*-
+;;; wordel.el --- An Elisp implementation of "Wordle" (aka "Lingo")  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022
 
-;; Author:  Nicholas Vollmer
+;; Author:  Nicholas Vollmer <iarchivedmywholelife@gmail.com>
+;; URL: https://github.com/progfolio/wordel
+;; Created: Janurary 13, 2022
 ;; Keywords: games
+;; Package-Requires: ((emacs "27.1"))
+;; Version: 0.0.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +24,7 @@
 
 ;;; Commentary:
 
-;;
+;; Have fun!
 
 ;;; Code:
 (require 'cl-lib)
@@ -28,8 +32,8 @@
 
 ;;; Custom Options
 (defgroup wordel nil
-  "A wordel clone for Emacs."
-  :group 'org
+  "Elisp implementation of `wordle` aka `lingo`"
+  :group 'games
   :prefix "wordel-")
 
 (defcustom wordel-word-length 5
