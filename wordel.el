@@ -66,6 +66,7 @@ These are deleted from a puzzle word character."
 
 ;;;; Variables
 (defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
+(defvar wordel--last-game nil "Game state of last played game.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -118,7 +119,8 @@ These are deleted from a puzzle word character."
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
   (let ((subjects (split-string subject "" 'omit-nulls))
-        (guesses  (split-string guess   "" 'omit-nulls))
+        ;; Necessary for resumed game's incomplete rows
+        (guesses  (let ((g (split-string guess   ""))) (pop g) (butlast g)))
         (matches  nil))
     (cl-loop for i from 0 to (1- (length guesses))
              for g = (nth i guesses)
@@ -181,17 +183,21 @@ COLUMNs are zero indexed."
     (with-silent-modifications
       (let ((p (point))) (put-text-property p (1+ p) 'display char)))))
 
+(defun wordel--row-to-word (row)
+  "Return character display properties of ROW."
+  (mapconcat (lambda (string)
+               (if-let ((char (get-text-property 0 'display string))
+                        ((stringp char)))
+                   char
+                 ""))
+             (split-string row "" 'omit-nulls)))
+
 (defun wordel--current-word ()
   "Return current row's word."
   (save-excursion
     (wordel--position-cursor 0)
-    (let ((row (buffer-substring (line-beginning-position) (line-end-position))))
-      (mapconcat (lambda (string)
-                   (if-let ((char (get-text-property 0 'display string))
-                            ((stringp char)))
-                       char
-                     ""))
-                 (split-string row "" 'omit-nils)))))
+    (wordel--row-to-word
+     (buffer-substring (line-beginning-position) (line-end-position)))))
 
 (defun wordel--display-message (string &rest objects)
   "Display a message in the UI message area.
@@ -211,9 +217,10 @@ STRING and OBJECTS are passed to `format', which see."
   (wordel--display-message
    "%s" (propertize (apply #'format string objects) 'face 'wordel-error)))
 
-(defun wordel-read-word (words)
-  "Read word and test against WORDS."
-  (let ((index 0)
+(defun wordel-read-word (words &optional index)
+  "Read word and test against WORDS.
+If INDEX is non-nil, start at that column of current row."
+  (let ((index (or index 0))
         done
         result)
     (while (not done)
@@ -222,10 +229,11 @@ STRING and OBJECTS are passed to `format', which see."
       ;; Thought I could wrap the call in a `condition-case', but that doesn't seem
       ;; do the trick on its own. ~ NV 2022-01-14
       (let ((event (let ((inhibit-quit t))
-                     (read-event "wordel reading events. Press C-g to quit game."))))
+                     (read-event "Wordel: Press C-g to quit game. Press C-p to pause."))))
         (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
           (?\C-g  (setq done t result nil))
+          (?\C-p  (setq done t result (wordel--current-word)))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
@@ -243,20 +251,29 @@ STRING and OBJECTS are passed to `format', which see."
                  (cl-incf index))))))))
     result))
 
-(defun wordel--new-game ()
-  "Initialize a new game.
-Return game outcome plist."
-  (let* ((words (or (funcall wordel-words-function)
-                    (error "Unable to retrieve candidate words with %S"
-                           wordel-words-function)))
-         (word (or (wordel--word words)
-                   (error "Unable to find a puzzle word")))
-         (limit wordel-attempt-limit)
-         (attempts 0)
-         (rows nil)
-         (blanks (make-list (length word) " "))
-         (outcome nil)
-         (start-time (current-time)))
+(defun wordel--game (&optional game)
+  "Initialize a new GAME.
+If GAME is non-nil, it must be a plist with the following key val pairs:
+Return a game plist."
+  (let* ((words      (or (plist-get game :words)
+                         (funcall wordel-words-function)
+                         (error "Unable to retrieve candidate words with %S"
+                                wordel-words-function)))
+         (word       (or (plist-get game :word)
+                         (wordel--word words)
+                         (error "Unable to find a puzzle word")))
+         (limit      (or (plist-get game :limit) wordel-attempt-limit))
+         (attempts   (if-let ((a (plist-get game :attempts))) (1- a) 0))
+         (rows       (plist-get game :rows))
+         (resume     (when (eq (plist-get game :outcome) 'pause)
+                       (let ((row (car (last rows))))
+                         (setq rows (butlast rows))
+                         row)))
+         (blanks     (make-list (length word) " "))
+         (outcome    nil)
+         ;;@TODO: fix when resuming from pause
+         (start-time (current-time))
+         (wordel-word-length (length word)))
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
       (while (not outcome)
@@ -265,39 +282,58 @@ Return game outcome plist."
         (with-silent-modifications
           (erase-buffer)
           (insert (wordel--board
-                   (append rows
-                           (when (< attempts limit)
-                             (append
-                              (list (wordel--row blanks 'current))
-                              (make-list (- limit (1+ attempts)) (wordel--row blanks))))))
+                   (append
+                    (mapcar #'cdr rows)
+                    (when (< attempts limit)
+                      (append
+                       (list (wordel--row blanks 'current))
+                       (make-list (- limit (1+ attempts)) (wordel--row blanks))))))
                   "\n\n"
                   (propertize " " 'message-area t)))
         (cond
-         ((and (> attempts 0)
-               (string= (replace-regexp-in-string " " "" (car (last rows))) word))
+         ((and (> attempts 0) (string= (caar (last rows)) word))
           (setq outcome 'win))
          ((>= attempts limit)
           (setq outcome 'lose))
          (t (cl-incf attempts)
-            (let ((guess (wordel-read-word words)))
+            (when resume
+              (let ((row (let ((s (split-string (car resume) "")))
+                           (pop s) (butlast s))))
+                (dotimes (i (length row))
+                  (wordel--position-cursor i)
+                  (wordel--display-char (nth i row)))))
+            (let ((guess (wordel-read-word words
+                                           (when resume
+                                             (prog1 (string-match-p " " (car resume))
+                                               (setq resume nil))))))
               (if guess
-                  (setq rows (append
-                              rows
-                              (list (wordel--row (wordel--comparison guess word)))))
+                  (let ((comparison (wordel--comparison guess word)))
+                    (setq rows (append
+                                rows
+                                (list
+                                 ;; comparison nil when paused with no input
+                                 (cons guess (wordel--row (or comparison blanks))))))
+                    (when (or (string-match-p " " guess)
+                              (string-empty-p guess))
+                      (setq outcome 'pause)))
                 (setq outcome 'quit)
                 ;; Leaving cursor in the board gives false impression that game is on.
                 (goto-char (point-max))))))
-        (pcase outcome
-          ('win  (wordel--display-message "You WON!"))
-          ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
-          ('quit (wordel--display-message "The word was %S, quitter." word))))
-      (list
-       :outcome  outcome
-       :attempts attempts
-       :word word
-       :rows rows
-       :start-time start-time
-       :end-time (current-time)))))
+        (when outcome
+          (apply #'wordel--display-message
+                 (pcase outcome
+                   ('win   (list "You WON!"))
+                   ('lose  (list "YOU LOST! Word was %S"     word))
+                   ('quit  (list "The word was %S, quitter." word))
+                   ('pause (list "Game Paused. Press \"r\" to resume"))))
+          (setq wordel--last-game
+                (list
+                 :outcome  outcome
+                 :attempts attempts
+                 :word word
+                 :rows rows
+                 :start-time start-time
+                 :end-time (current-time))))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
@@ -308,10 +344,6 @@ Return game outcome plist."
 (define-key wordel-mode-map (kbd "r") 'wordel)
 
 ;;;###autoload
-(defun wordel ()
-  "Play wordel."
-  (interactive)
-  (wordel--new-game))
 
 (defun wordel-marathon--append-message (string &rest objects)
   "Append STRING to game message.
@@ -326,6 +358,13 @@ STRING and OBJECTS are passed to `format', which see."
                              (concat
                               (get-text-property beg 'display)
                               (apply #'format string objects))))))))
+(defun wordel (&optional new)
+  "Play wordel.
+IF NEW is non-nil, abandon paused game, if any."
+  (interactive "P")
+  (wordel--game (unless new
+                  (when (eq (plist-get wordel--last-game :outcome) 'pause)
+                    wordel--last-game))))
 
 ;;;###autoload
 (defun wordel-marathon ()
@@ -342,7 +381,7 @@ STRING and OBJECTS are passed to `format', which see."
                                        (cl-decf attempts)
                                      attempts)))
          (condition-case _ ; The dictionary has been exhausted.
-             (wordel--new-game)
+             (wordel--game)
            ((error) (setf (car outcomes) (plist-put (car outcomes) :outcome 'champion)))))
        outcomes)
       (cl-incf rounds))
