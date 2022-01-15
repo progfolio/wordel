@@ -285,7 +285,8 @@ STRING and OBJECTS are passed to `format', which see."
         (pcase outcome
           ('win  (wordel--display-message "You WON!"))
           ('lose (wordel--display-message "YOU LOST! Word was %S"     word))
-          ('quit (wordel--display-message "The word was %S, quitter." word)))))))
+          ('quit (wordel--display-message "The word was %S, quitter." word))))
+      outcome)))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
@@ -300,6 +301,44 @@ STRING and OBJECTS are passed to `format', which see."
   "Play wordel."
   (interactive)
   (wordel--new-game))
+
+(defun wordel-marathon--append-message (string &rest objects)
+  "Append STRING to game message.
+STRING and OBJECT are passed to `format', which see."
+  (with-current-buffer wordel-buffer
+    (save-excursion
+      (with-silent-modifications
+        (goto-char (point-min))
+        (let* ((anchor (text-property-search-forward 'message-area))
+               (beg    (prop-match-beginning anchor)))
+          (put-text-property beg (prop-match-end anchor) 'display
+                             (concat
+                              (get-text-property beg 'display)
+                              (apply #'format string objects))))))))
+
+;;;###autoload
+(defun wordel-marathon ()
+  (interactive)
+  (let ((wordlen 3)
+        (attempts 11)
+        (rounds 0)
+        (outcome nil))
+    (while (not (member outcome '(quit lose champion)))
+      (setq outcome
+            (let ((wordel-word-length   (cl-incf wordlen))
+                  (wordel-attempt-limit (if (zerop (mod rounds 3))
+                                            (cl-decf attempts)
+                                          attempts)))
+              (condition-case _
+                  (wordel--new-game)
+                ((error) 'champion))))
+      (cl-incf rounds))
+    (apply #'wordel-marathon--append-message
+           (pcase outcome
+             ('quit     (list "\nHad enough, eh? Final Score: %d" (cl-decf rounds)))
+             ('lose     (list"\nFinal Score: %d" rounds))
+             ('champion (list "\nYOU BEAT THE DICTIONARY! Final Score: %d" rounds))))))
+
 
 (provide 'wordel)
 ;;; wordel.el ends here
