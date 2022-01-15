@@ -92,12 +92,8 @@ These are deleted from a puzzle word character."
 
 (defun wordel-legal-p (word)
   "Return t if WORD is a legal word, nil otherwise."
-  (let* ((min (if (consp wordel-word-length)
-                  (car wordel-word-length)
-                wordel-word-length))
-         (max (if (consp wordel-word-length)
-                  (cdr wordel-word-length)
-                wordel-word-length)))
+  (let* ((min (or (car-safe wordel-word-length) wordel-word-length))
+         (max (or (cdr-safe wordel-word-length) wordel-word-length)))
     (and (<= min (length word) max)
          (string-match-p "[AEIOUYaeiouy]" word)
          (not (string-match-p wordel-illegal-characters word)))))
