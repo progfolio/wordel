@@ -63,27 +63,29 @@ These are deleted from a puzzle word character."
 
 ;;;; Faces
 (defface wordel-correct
-  '((t (:foreground "green")))
+  '((t (:background "#538D4E")))
   "Face for a guessed letter which matches its position in the puzzle word.")
 
 (defface wordel-almost
-  '((t (:foreground "orange")))
+  '((t (:background "#bf9f3b")))
   "Face for a guessed letter which is included in the puzzle word.")
 
 (defface wordel-box
-  '((t (:box (:line-width 2 :style 'released-button))))
+  '((t (:box (:line-width -4 :color "black" :style released-button))))
   "Default face for a wordel letter.")
 
 (defface wordel-current-box
-  '((t (:box (:line-width 2 :color "yellow" :style 'released-button))))
+  '((t (:box (:line-width -4 :color "orange" :style released-button))))
   "Default face for a wordel letter.")
 
 (defface wordel-spacer
-  '((t (:width ultra-condensed :height 0.75)))
+  '((t (:width ultra-condensed :height 0 :background nil)))
   "Face for space between letter boxes.")
 
 (defface wordel-default
   '((t ( :weight ultra-bold
+         :background "#3A3A3C"
+         :foreground "#D7DADC"
          :height 3.0)))
   "Default face for a wordel letter.")
 
