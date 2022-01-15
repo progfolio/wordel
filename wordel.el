@@ -294,6 +294,7 @@ STRING and OBJECTS are passed to `format', which see."
 ;;; Key bindngs
 (define-key wordel-mode-map (kbd "r") 'wordel)
 
+;;;###autoload
 (defun wordel ()
   "Play wordel."
   (interactive)
