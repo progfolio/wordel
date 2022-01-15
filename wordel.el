@@ -344,20 +344,6 @@ Return a game plist."
 (define-key wordel-mode-map (kbd "r") 'wordel)
 
 ;;;###autoload
-
-(defun wordel-marathon--append-message (string &rest objects)
-  "Append STRING to game message.
-STRING and OBJECTS are passed to `format', which see."
-  (with-current-buffer wordel-buffer
-    (save-excursion
-      (with-silent-modifications
-        (goto-char (point-min))
-        (let* ((anchor (text-property-search-forward 'message-area))
-               (beg    (prop-match-beginning anchor)))
-          (put-text-property beg (prop-match-end anchor) 'display
-                             (concat
-                              (get-text-property beg 'display)
-                              (apply #'format string objects))))))))
 (defun wordel (&optional new)
   "Play wordel.
 IF NEW is non-nil, abandon paused game, if any."
