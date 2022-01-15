@@ -57,6 +57,10 @@ Each candidate should be on a separate line."
 These are deleted from a puzzle word character."
   :type 'regexp)
 
+;;;; Variables
+(defvar wordel--game-in-progress nil "Whether or not the game is active.")
+(defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
+
 ;;;; Faces
 (defface wordel-correct
   '((t (:foreground "green")))
@@ -111,64 +115,55 @@ These are deleted from a puzzle word character."
   "Select a random word from CANDIDATES."
   (nth (random (length candidates)) candidates))
 
-(defmacro wordel-dochar (word &rest body)
-  "Execute BODY for each character in WORD.
-The following anaphoric bindings are provided:
-   - `word`  the string represented by WORD.
-   - `chars` a list of each character in WORD.
-   - `char`  the current character of WORD.
-   - `i`     the index of the current character."
-  (declare (indent 1) (debug t))
-  `(let* ((word  ,word)
-          (chars (split-string word "" 'omit-nulls)))
-     (dotimes (i (length chars))
-       (let ((char (nth i chars)))
-         ,@body))))
-
-(defun wordel--compare (guess subject &optional box)
-  "Return propertized GUESS character list compared against SUBJECT.
-IF BOX is non-nil, use that for the character BOX face instead of `wordel-box'."
+(defun wordel--comparison (guess subject)
+  "Return propertized GUESS character list compared against SUBJECT."
   (let ((subjects (split-string subject "" 'omit-nulls))
-        result
-        matched
-        seen)
-    (wordel-dochar guess
-      (push
-       (propertize
-        char 'face
-        (list :inherit
-              (delq nil
-                    (list
-                     (or box 'wordel-box)
-                     (cond
-                      ((string-match-p char (nth i subjects))
-                       (push char matched) 'wordel-correct)
-                      ((and (string-match-p char subject)
-                            (not (string-match-p char guess (+ i 1)))
-                            (not (member char matched)))
-                       'wordel-almost)
-                      (t nil))
-                     'wordel-default))))
-       result)
-      (push char seen))
-    (nreverse result)))
+        (guesses  (split-string guess   "" 'omit-nulls))
+        (matches  nil))
+    (cl-loop for i from 0 to (1- (length guesses))
+             for g = (nth i guesses)
+             for s = (nth i subjects)
+             do (put-text-property
+                 0 1 'hint
+                 (cond
+                  ((string-match-p g s)
+                   (push g matches) 'wordel-correct)
+                  ((and (string-match-p g subject)
+                        (not (string-match-p g guess (+ i 1)))
+                        (not (member g matches)))
+                   'wordel-almost)
+                  (t nil))
+                 g)
+             collect g)))
 
-(defun wordel--row (chars)
-  "Return list of propertized CHARS."
-  ;;at this point word will have char matches propertized?
+(defun wordel--pad (char)
+  "Visually pad CHAR."
+  (let ((spacer (propertize " " 'display '(space :width 1.5))))
+    (concat spacer char spacer)))
+
+(defun wordel--tile (string &optional box)
+  "Return a tile from STRING.
+If BOX is non-nil, outline the tile with it."
+  (let ((face (list :inherit (list 'wordel-default))))
+    (when-let ((hint (get-text-property 0 'hint string)))
+      (push hint (cadr face)))
+    (push (or box 'wordel-box) (cadr face))
+    (propertize (wordel--pad string) 'face face)))
+
+(defun wordel--row (chars &optional current)
+  "Return a row of tiles from CHARS.
+If CURRENT is non-nil, mark row as current."
   (string-join
-   (mapcar (lambda (c) (format "%s%s" c (propertize " " 'face 'wordel-spacer)))
-           chars)))
+   (cl-loop for i from 0 to (1- (length chars))
+            for c = (nth i chars)
+            collect (wordel--tile (if current (propertize c 'index i) c)
+                                  (when current 'wordel-current-box)))
+   (propertize " " 'face 'wordel-spacer)))
 
-(defun wordel--insert-board (rows)
-  "Insert the board from ROWS.
-Each row in ROWS is a character list."
-  (dolist (row rows)
-    (insert (propertize (concat " " row "\n") 'cursor-intangible t))))
-
-(defvar wordel--game-in-progress nil "Whether or not the game is active.")
-(defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
-
+(defun wordel--board (rows)
+  "Return a board string from ROWS."
+  (mapconcat (lambda (row) (propertize row 'cursor-intangible t))
+             rows "\n"))
 
 (defun wordel--position-cursor (column)
   "Position cursor in COLUMN of current-row.
@@ -193,9 +188,12 @@ COLUMNs are zero indexed."
   (save-excursion
     (wordel--position-cursor 0)
     (let ((row (buffer-substring (line-beginning-position) (line-end-position))))
-      (string-join
-       (mapcar (lambda (char) (get-text-property 0 'display char))
-               (split-string row "" 'omit-nils))))))
+      (mapconcat (lambda (string)
+                   (if-let ((char (get-text-property 0 'display string))
+                            ((stringp char)))
+                       char
+                     ""))
+                 (split-string row "" 'omit-nils)))))
 
 (defun wordel-quit ()
   "Quit wordel."
@@ -260,17 +258,12 @@ STRING and OBJECTS are passed to `format', which see."
   (let* ((words (or (funcall wordel-words-function)
                     (error "Unable to retrieve candidate words with %S"
                            wordel-words-function)))
-         (word  (or (wordel--word words) (error "Unable to find a puzzle word")))
-         (attempts-left wordel-attempt-limit)
-         (attempts  nil)
-         (blanks      (make-string (length word) ? ))
-         (blank-row   (wordel--row (wordel--compare blanks word)))
-         (current (let ((c (substring blanks))
-                        result)
-                    (wordel-dochar c
-                      (push (propertize char 'current-row t 'index i) result))
-                    (string-join (nreverse result))))
-         (current-row (wordel--row (wordel--compare current word 'wordel-current-box)))
+         (word (or (wordel--word words)
+                   (error "Unable to find a puzzle word")))
+         ;;@TODO: count up instead of down
+         (attempts wordel-attempt-limit)
+         (rows nil)
+         (blanks (make-list (length word) " "))
          (wordel--game-in-progress t)
          (outcome nil))
     (with-current-buffer (get-buffer-create wordel-buffer)
@@ -280,13 +273,14 @@ STRING and OBJECTS are passed to `format', which see."
         (goto-char (point-min))
         (with-silent-modifications
           (erase-buffer)
-          (wordel--insert-board
-           (append (reverse attempts)
-                   (when (> attempts-left 0)
-                     (append
-                      (list current-row)
-                      (make-list (1- attempts-left) blank-row)))))
-          (insert "\n\n" (propertize " " 'message-area t)))
+          (insert (wordel--board
+                   (append rows
+                           (when (> attempts 0)
+                             (append
+                              (list (wordel--row blanks 'current))
+                              (make-list (1- attempts) (wordel--row blanks))))))
+                  "\n\n"
+                  (propertize " " 'message-area t)))
         (pcase outcome
           ('win  (wordel--display-message "You WON!")
                  (setq wordel--game-in-progress nil))
@@ -296,17 +290,20 @@ STRING and OBJECTS are passed to `format', which see."
                  (wordel--display-message "The word was %S, quitter." word))
           (_
            (cond
-            ((and attempts
-                  (string= (replace-regexp-in-string " " "" (car attempts)) word))
+            ((and rows
+                  (string= (replace-regexp-in-string " " "" (car (last rows))) word))
              (setq outcome 'win))
-            ((zerop attempts-left)
+            ((zerop attempts)
              (setq outcome 'lose))
-            (t
-             (cl-decf attempts-left)
-             (let ((guess (wordel-read-word words)))
-               (if (null guess)
-                   (setq outcome 'quit)
-                 (push (wordel--row (wordel--compare guess word)) attempts)))))))))))
+            (t (cl-decf attempts)
+               (let ((guess (wordel-read-word words)))
+                 (if (null guess)
+                     (setq outcome 'quit)
+                   (setq rows
+                         (append
+                          rows
+                          (list (wordel--row
+                                 (wordel--comparison guess word)))))))))))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
