@@ -277,7 +277,11 @@ If INDEX is non-nil, start at that column of current row."
              (if (and (wordel-legal-p word)
                       (member word words))
                  (setq done t result word)
-               (wordel--display-error "Word not in dictionary: %S" word))))
+               (wordel--display-error
+                (if (string-match-p wordel-illegal-characters word)
+                    "Not enough letters: %S"
+                  "Word not in dictionary: %S")
+                word))))
           ('backspace (wordel--display-char " ")
                       (when (> index 0) (cl-decf index)))
           ((pred characterp)
