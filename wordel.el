@@ -192,9 +192,10 @@ COLUMNs are zero indexed."
 (defun wordel--row-to-word (row)
   "Return character display properties of ROW."
   (mapconcat (lambda (string)
-               (if (get-text-property 0 'index string)
-                   (or (get-text-property 0 'display string) " ")
-                 ""))
+               (cond
+                ((get-text-property 0 'index string)
+                 (or (get-text-property 0 'display string) " "))
+                ((not (string-match-p " " string)) string)))
              (wordel--split-with-spaces row)))
 
 (defun wordel--current-word ()
@@ -237,8 +238,8 @@ If INDEX is non-nil, start at that column of current row."
                      (read-event "Wordel: Press C-g to quit game. Press C-p to pause."))))
         (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
-          (?\C-g  (setq done t result nil))
-          (?\C-p  (setq done t result (wordel--current-word)))
+          (?\C-g  (setq done t result 'quit))
+          (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
@@ -256,99 +257,96 @@ If INDEX is non-nil, start at that column of current row."
                  (cl-incf index))))))))
     result))
 
-(defun wordel--game (&optional game)
-  "Initialize a new GAME.
-If GAME is non-nil, it must be a plist with the following key val pairs:
-Return a game plist."
-  (let* ((words      (or (plist-get game :words)
-                         (funcall wordel-words-function)
-                         (error "Unable to retrieve candidate words with %S"
-                                wordel-words-function)))
-         (word       (or (plist-get game :word)
-                         (wordel--word words)
-                         (error "Unable to find a puzzle word")))
-         (limit      (or (plist-get game :limit) wordel-attempt-limit))
-         (attempts   (if-let ((a (plist-get game :attempts))) (1- a) 0))
-         (rows       (plist-get game :rows))
-         (resume     (when (eq (plist-get game :outcome) 'pause)
-                       (let ((row (car (last rows))))
-                         (setq rows (butlast rows))
-                         row)))
-         (blanks     (make-list (length word) " "))
-         (outcome    nil)
-         ;;@TODO: fix when resuming from pause
-         (start-time (current-time))
-         (wordel-word-length (length word)))
+(defun wordel--print-board (rows limit)
+  "Print board ROWS up to LIMIT.
+After ROWS are exhausted, blank rows are printed.
+The first blank row is marked current."
+  (let ((empty (make-list wordel-word-length " "))
+        (len   (length rows)))
+    (insert
+     (wordel--board (append
+                     (reverse rows)
+                     (when (< len limit)
+                       (append (list (wordel--row empty 'current))
+                               (make-list (- limit (1+ len)) (wordel--row empty)))))))))
+
+(defun wordel--unpause (inputs)
+  "Print stored INPUTS on board.
+Return index of needed input in current row."
+  (dotimes (i (length inputs))
+    (let ((c (nth i inputs)))
+      (wordel--position-cursor i)
+      (wordel--display-char c)))
+  (when inputs
+    (or (string-match-p wordel-illegal-characters (string-join inputs))
+        (1- (length inputs)))))
+
+(defun wordel--end-game (state)
+  "End game according to STATE."
+  (apply #'wordel--display-message
+         (pcase (plist-get state :outcome)
+           ('win   (list "You WON!"))
+           ('lose  (list "YOU LOST! Word was %S"     (plist-get state :word)))
+           ('quit  (list "The word was %S, quitter." (plist-get state :word)))
+           ('pause (list "Game Paused. Press \"r\" to resume")))))
+
+(defun wordel--words ()
+  "Return a word list using `wordel-words-funtcion'."
+  (or (funcall wordel-words-function)
+      (error "Unable to retrieve candidate words with %S"
+             wordel-words-function)))
+
+(defun wordel--game (&optional state)
+  "Initialize a new game.
+If STATE is non-nil, it's properties are used in lieu of defaults.
+Return a state plist."
+  (cl-destructuring-bind (&key (words (wordel--words))
+                               (word  (or (wordel--word words)
+                                          (error "Unable to find a puzzle word")))
+                               (limit wordel-attempt-limit)
+                               rows inputs (attempts 0)
+                               &allow-other-keys &aux
+                               (outcome  nil)
+                               ;;@TODO: fix when resuming from pause
+                               (start-time (current-time))
+                               (wordel-word-length (length word)))
+      (copy-tree state)
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
       (wordel-mode)
       (while (not outcome)
-        (goto-char (point-min))
         (with-silent-modifications
           (erase-buffer)
-          (insert (wordel--board
-                   (append
-                    (mapcar #'cdr rows)
-                    (when (< attempts limit)
-                      (append
-                       (list (wordel--row blanks 'current))
-                       (make-list (- limit (1+ attempts)) (wordel--row blanks))))))
-                  "\n\n"
-                  (propertize " " 'message-area t)))
+          (goto-char (point-min))
+          (wordel--print-board rows limit)
+          (insert "\n\n" (propertize " " 'message-area t)))
         (cond
-         ((and (> attempts 0) (string= (caar (last rows)) word))
+         ((when-let ((r (car rows))) (string= (wordel--row-to-word r) word))
           (setq outcome 'win))
          ((>= attempts limit)
           (setq outcome 'lose))
-         (t (cl-incf attempts)
-            (when resume
-              (let ((row (let ((s (split-string (car resume) "")))
-                           (pop s) (butlast s))))
-                (dotimes (i (length row))
-                  (wordel--position-cursor i)
-                  (wordel--display-char (nth i row)))))
-            (let ((guess (wordel-read-word words
-                                           (when resume
-                                             (prog1 (string-match-p " " (car resume))
-                                               (setq resume nil))))))
-              (if guess
-                  (let ((comparison (wordel--comparison guess word)))
-                    (setq rows (append
-                                rows
-                                (list
-                                 ;; comparison nil when paused with no input
-                                 (cons guess (wordel--row (or comparison blanks))))))
-                    (when (or (string-match-p " " guess)
-                              (string-empty-p guess))
-                      (setq outcome 'pause)))
-                (setq outcome 'quit)
-                ;; Leaving cursor in the board gives false impression that game is on.
-                (goto-char (point-max))))))
-        (when outcome
-          (apply #'wordel--display-message
-                 (pcase outcome
-                   ('win   (list "You WON!"))
-                   ('lose  (list "YOU LOST! Word was %S"     word))
-                   ('quit  (list "The word was %S, quitter." word))
-                   ('pause (list "Game Paused. Press \"r\" to resume"))))))
-      (setq wordel--last-game
-            (list
-             :outcome  outcome
-             :attempts attempts
-             :limit limit
-             :word word
-             :rows rows
-             :start-time start-time
-             :end-time (current-time))))))
-
-(define-derived-mode wordel-mode special-mode "Wordel"
-  "A word game based on 'Wordle' and/or 'Lingo'.
-
-\\{wordel-mode-map}")
-
-;;; Key bindngs
-(define-key wordel-mode-map (kbd "r") 'wordel)
-(define-key wordel-mode-map (kbd "m") 'wordel-marathon)
+         (t
+          (let ((index (wordel--unpause inputs)))
+            (setq inputs nil)
+            (cl-incf attempts)
+            (pcase (wordel-read-word words index)
+              ('quit                 (setq outcome 'quit))
+              ((and (pred listp) it) (setq outcome 'pause inputs it) (cl-decf attempts))
+              (it                    (push (wordel--row (wordel--comparison it word))
+                                           rows)))))))
+      (let ((state (list :outcome  outcome
+                         :attempts attempts
+                         :limit limit
+                         :inputs inputs
+                         :word word
+                         :rows rows
+                         :start-time start-time
+                         :end-time (current-time)
+                         :words words)))
+        (wordel--end-game state)
+        ;; Leaving cursor in the board gives false impression that game is on.
+        (goto-char (point-max))
+        (setq wordel--last-game state)))))
 
 ;;;###autoload
 (defun wordel (&optional new)
@@ -359,31 +357,34 @@ IF NEW is non-nil, abandon paused game, if any."
                   (when (eq (plist-get wordel--last-game :outcome) 'pause)
                     wordel--last-game))))
 
-(defun wordel--marathon (&optional games)
-  "Setup a marathon of wordel GAMES."
-  (let* ((game     (car games))
-         (wordlen  (if-let ((w (plist-get game :word))) (length w) 3))
-         (attempts (or (plist-get game :limit) 11))
-         (rounds   (length games))
-         (resume   (eq (plist-get game :outcome) 'pause))
-         ;; bound here so we don't interfere with non-marathon games
+(defun wordel--marathon (&optional states)
+  "Initialize a marathon of wordel games.
+If STATES is non-nil, it's first element initializes the state of the marathon."
+  (let* ((states  (copy-tree  states))
+         (state   (car states))
+         (resume  (eq (plist-get state :outcome) 'pause))
+         (wordlen (if-let ((w (plist-get state :word))) (length w) 3))
+         (limit   (or (plist-get state :limit) 10))
+         (rounds  (if resume (length states) 0))
+         ;; Bound here so we don't interfere with non-marathon games.
          wordel--last-game)
-    (while (or resume
-               (not (member (plist-get (car games) :outcome) '(quit pause lose champion))))
+    (while (or resume (not (member (plist-get (car states) :outcome)
+                                   '(quit pause lose champion))))
       (setq wordel--last-marathon
-            (push
-             (let ((wordel-word-length   (cl-incf wordlen))
-                   (wordel-attempt-limit (if (zerop (mod rounds 3))
-                                             (cl-decf attempts)
-                                           attempts)))
-               (condition-case _ ; The dictionary has been exhausted.
-                   (wordel--game (when resume (prog1 (car games) (setq resume nil))))
-                 ((error) (setf (car games) (plist-put (car games) :outcome 'champion)))))
-             games))
-      (cl-incf rounds))
+            (push (let ((wordel-word-length wordlen)
+                        (wordel-attempt-limit limit))
+                    (condition-case _ ; The dictionary has been exhausted.
+                        (wordel--game
+                         (when resume (prog1 (car states) (setq resume nil))))
+                      ((error) (setf (car states)
+                                     (plist-put (car states) :outcome 'champion)))))
+                  states))
+      (cl-incf rounds)
+      (cl-incf wordlen)
+      (if (zerop (mod rounds 3)) (cl-decf limit)))
     ;;@TODO: print more stats about marathon
     (apply #'wordel--display-message
-           (let* ((game    (car games))
+           (let* ((game    (car states))
                   (word    (plist-get game :word))
                   (outcome (plist-get game :outcome)))
              (pcase outcome
@@ -391,7 +392,9 @@ IF NEW is non-nil, abandon paused game, if any."
                                 (cl-decf rounds)))
                ('lose     (list "Sorry. Word was %S.\nFinal Score: %d" word rounds))
                ('champion (list "YOU BEAT THE DICTIONARY!\nFinal Score: %d" rounds))
-               ('pause    (list "Marathon paused. Press \"m\" to resume.")))))))
+               ('pause    (list "Marathon paused. Press \"m\" to resume.")))))
+    (unless (eq (plist-get (car states) :outcome) 'pause)
+      (setq wordel--last-marathon nil))))
 
 ;;@TODO: This and the `wordel` command are essentially the same...
 ;;;###autoload
@@ -404,8 +407,14 @@ IF NEW is non-nil, abandon paused marathon, if any."
                                  ((eq (plist-get last :outcome) 'pause)))
                         wordel--last-marathon))))
 
+(define-derived-mode wordel-mode special-mode "Wordel"
+  "A word game based on 'Wordle' and/or 'Lingo'.
 
+\\{wordel-mode-map}")
 
+;;; Key bindngs
+(define-key wordel-mode-map (kbd "r") 'wordel)
+(define-key wordel-mode-map (kbd "m") 'wordel-marathon)
 
 (provide 'wordel)
 ;;; wordel.el ends here
