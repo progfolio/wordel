@@ -68,6 +68,29 @@ These are deleted from a puzzle word character."
 (defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--last-game nil "Game state of last played game.")
 (defvar wordel--last-marathon nil "Game state of last played marathon.")
+(defvar wordel--rules
+  (string-join
+   (list
+    (propertize "How to Play" 'face 'wordel-default)
+    "Type a letter into each box to guess the secret word."
+    (concat "Press " (propertize "RETURN" 'face 'help-key-binding) " to submit  your guess.")
+    "Each letter in your guess will be color coded to give you hints:"
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile (propertize "X" 'hint 'wordel-almost))
+            (propertize "  The letter appears in the word at least once." 'display '(raise 0.50)))
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile (propertize "X" 'hint 'wordel-correct))
+            (propertize "  The letter is in this exact spot in the word." 'display '(raise 0.50)))
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile "X")
+            (propertize "  The letter is in not in the word." 'display '(raise 0.50)))
+    "\n"
+    "You get as many guesses as there are rows in the game table.")
+   "\n")
+  "The rules of the game.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -157,6 +180,8 @@ If BOX is non-nil, outline the tile with it."
     (push (or box 'wordel-box) (cadr face))
     (propertize (wordel--pad string) 'face face)))
 
+
+
 (defun wordel--row (chars &optional current)
   "Return a row of tiles from CHARS.
 If CURRENT is non-nil, mark row as current."
@@ -227,19 +252,26 @@ STRING and OBJECTS are passed to `format', which see."
   "Read word and test against WORDS.
 If INDEX is non-nil, start at that column of current row."
   (let ((index (or index 0))
+        (header header-line-format)
+        help
         done
         result)
+    (setq header-line-format
+          (concat (propertize "C-g" 'face 'help-key-binding) " to quit game. "
+                  (propertize "C-p" 'face 'help-key-binding) " to pause game. "
+                  (propertize "C-h" 'face 'help-key-binding) " to toggle help. "))
     (while (not done)
       (wordel--position-cursor index)
       ;; @HACK: Is there a better way to catch a quit signal from read-event?
       ;; Thought I could wrap the call in a `condition-case', but that doesn't seem
       ;; do the trick on its own. ~ NV 2022-01-14
       (let ((event (let ((inhibit-quit t))
-                     (read-event "Wordel: Press C-g to quit game. Press C-p to pause."))))
+                     (read-event "Wordel: Press C-g to quit game, C-p to pause, C-h to toggle help."))))
         (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
           (?\C-g  (setq done t result 'quit))
           (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
+          (?\C-h  (when (setq help (not help)) (wordel--display-message "%s" wordel--rules)))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
@@ -255,6 +287,7 @@ If INDEX is non-nil, start at that column of current row."
                (wordel--display-char (upcase s))
                (when (< index (1- wordel-word-length))
                  (cl-incf index))))))))
+    (setq header-line-format header)
     result))
 
 (defun wordel--print-board (rows limit)
@@ -313,7 +346,7 @@ Return a state plist."
       (copy-tree state)
     (with-current-buffer (get-buffer-create wordel-buffer)
       (pop-to-buffer-same-window wordel-buffer)
-      (wordel-mode)
+      (unless (derived-mode-p 'wordel-mode) (wordel-mode))
       (while (not outcome)
         (with-silent-modifications
           (erase-buffer)
@@ -407,14 +440,39 @@ IF NEW is non-nil, abandon paused marathon, if any."
                                  ((eq (plist-get last :outcome) 'pause)))
                         wordel--last-marathon))))
 
+(defun wordel--commands-text ()
+  "Return commands text."
+  (substitute-command-keys
+   (concat "\\<wordel-mode-map>"
+           "Wordel! "
+           "\\[wordel] to play again. "
+           "\\[wordel-marathon] to play in marathon mode. "
+           "\\[wordel-help] to display help. ")))
+
+;;;###autoload
+(defun wordel-help ()
+  "Display game rules."
+  (interactive)
+  (let ((b (concat wordel-buffer "<help>")))
+    (with-current-buffer (get-buffer-create b)
+      (unless (derived-mode-p 'special-mode)
+        (erase-buffer)
+        (insert wordel--rules)
+        (insert "\nYou can quit this window by pressing "
+                (propertize (substitute-command-keys "\\<special-mode-map>\\[quit-window].")))
+        (special-mode))
+      (pop-to-buffer-same-window (current-buffer)))))
+
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
 
-\\{wordel-mode-map}")
+    \\{wordel-mode-map}"
+  (setq header-line-format (wordel--commands-text)))
 
 ;;; Key bindngs
 (define-key wordel-mode-map (kbd "r") 'wordel)
 (define-key wordel-mode-map (kbd "m") 'wordel-marathon)
+(define-key wordel-mode-map (kbd "h") 'wordel-help)
 
 (provide 'wordel)
 ;;; wordel.el ends here
