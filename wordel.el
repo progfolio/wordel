@@ -67,6 +67,7 @@ These are deleted from a puzzle word character."
 ;;;; Variables
 (defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--last-game nil "Game state of last played game.")
+(defvar wordel--last-marathon nil "Game state of last played marathon.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -116,12 +117,16 @@ These are deleted from a puzzle word character."
   "Select a random word from CANDIDATES."
   (nth (random (length candidates)) candidates))
 
+(defun wordel--split-with-spaces (string)
+  "Split STRING, keeping its spaces."
+  (let ((s (split-string string ""))) (pop s) (butlast s)))
+
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
-  (let ((subjects (split-string subject "" 'omit-nulls))
-        ;; Necessary for resumed game's incomplete rows
-        (guesses  (let ((g (split-string guess   ""))) (pop g) (butlast g)))
-        (matches  nil))
+  (let* ((subjects (split-string subject "" 'omit-nulls))
+         ;; Keep spaces in complete rows that result from pause.
+         (guesses  (wordel--split-with-spaces guess))
+         (matches  nil))
     (cl-loop for i from 0 to (1- (length guesses))
              for g = (nth i guesses)
              for s = (nth i subjects)
@@ -187,11 +192,10 @@ COLUMNs are zero indexed."
 (defun wordel--row-to-word (row)
   "Return character display properties of ROW."
   (mapconcat (lambda (string)
-               (if-let ((char (get-text-property 0 'display string))
-                        ((stringp char)))
-                   char
+               (if (get-text-property 0 'index string)
+                   (or (get-text-property 0 'display string) " ")
                  ""))
-             (split-string row "" 'omit-nulls)))
+             (wordel--split-with-spaces row)))
 
 (defun wordel--current-word ()
   "Return current row's word."
@@ -326,15 +330,16 @@ Return a game plist."
                    ('win   (list "You WON!"))
                    ('lose  (list "YOU LOST! Word was %S"     word))
                    ('quit  (list "The word was %S, quitter." word))
-                   ('pause (list "Game Paused. Press \"r\" to resume"))))
-          (setq wordel--last-game
-                (list
-                 :outcome  outcome
-                 :attempts attempts
-                 :word word
-                 :rows rows
-                 :start-time start-time
-                 :end-time (current-time))))))))
+                   ('pause (list "Game Paused. Press \"r\" to resume"))))))
+      (setq wordel--last-game
+            (list
+             :outcome  outcome
+             :attempts attempts
+             :limit limit
+             :word word
+             :rows rows
+             :start-time start-time
+             :end-time (current-time))))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
   "A word game based on 'Wordle' and/or 'Lingo'.
@@ -343,6 +348,7 @@ Return a game plist."
 
 ;;; Key bindngs
 (define-key wordel-mode-map (kbd "r") 'wordel)
+(define-key wordel-mode-map (kbd "m") 'wordel-marathon)
 
 ;;;###autoload
 (defun wordel (&optional new)
@@ -353,34 +359,52 @@ IF NEW is non-nil, abandon paused game, if any."
                   (when (eq (plist-get wordel--last-game :outcome) 'pause)
                     wordel--last-game))))
 
-;;;###autoload
-(defun wordel-marathon ()
-  "Run a marathon of wordel rounds."
-  (interactive)
-  (let ((wordlen 3)
-        (attempts 11)
-        (rounds 0)
-        (outcomes nil))
-    (while (not (member (plist-get (car outcomes) :outcome) '(quit lose champion)))
-      (push
-       (let ((wordel-word-length   (cl-incf wordlen))
-             (wordel-attempt-limit (if (zerop (mod rounds 3))
-                                       (cl-decf attempts)
-                                     attempts)))
-         (condition-case _ ; The dictionary has been exhausted.
-             (wordel--game)
-           ((error) (setf (car outcomes) (plist-put (car outcomes) :outcome 'champion)))))
-       outcomes)
+(defun wordel--marathon (&optional games)
+  "Setup a marathon of wordel GAMES."
+  (let* ((game     (car games))
+         (wordlen  (if-let ((w (plist-get game :word))) (length w) 3))
+         (attempts (or (plist-get game :limit) 11))
+         (rounds   (length games))
+         (resume   (eq (plist-get game :outcome) 'pause))
+         ;; bound here so we don't interfere with non-marathon games
+         wordel--last-game)
+    (while (or resume
+               (not (member (plist-get (car games) :outcome) '(quit pause lose champion))))
+      (setq wordel--last-marathon
+            (push
+             (let ((wordel-word-length   (cl-incf wordlen))
+                   (wordel-attempt-limit (if (zerop (mod rounds 3))
+                                             (cl-decf attempts)
+                                           attempts)))
+               (condition-case _ ; The dictionary has been exhausted.
+                   (wordel--game (when resume (prog1 (car games) (setq resume nil))))
+                 ((error) (setf (car games) (plist-put (car games) :outcome 'champion)))))
+             games))
       (cl-incf rounds))
     ;;@TODO: print more stats about marathon
     (apply #'wordel--display-message
-           (let* ((outcome (car outcomes))
-                  (word (plist-get outcome :word)))
-             (pcase (plist-get outcome :outcome)
-               ('quit     (list "Had enough, eh? Word was %S. Final Score: %d" word
+           (let* ((game    (car games))
+                  (word    (plist-get game :word))
+                  (outcome (plist-get game :outcome)))
+             (pcase outcome
+               ('quit     (list "Had enough, eh? Word was %S.\nFinal Score: %d" word
                                 (cl-decf rounds)))
-               ('lose     (list "Sorry. Word was %S. Final Score: %d" word rounds))
-               ('champion (list "YOU BEAT THE DICTIONARY! Final Score: %d" rounds)))))))
+               ('lose     (list "Sorry. Word was %S.\nFinal Score: %d" word rounds))
+               ('champion (list "YOU BEAT THE DICTIONARY!\nFinal Score: %d" rounds))
+               ('pause    (list "Marathon paused. Press \"m\" to resume.")))))))
+
+;;@TODO: This and the `wordel` command are essentially the same...
+;;;###autoload
+(defun wordel-marathon (&optional new)
+  "Play a wordel marathon.
+IF NEW is non-nil, abandon paused marathon, if any."
+  (interactive "P")
+  (wordel--marathon (unless new
+                      (when-let ((last (car wordel--last-marathon))
+                                 ((eq (plist-get last :outcome) 'pause)))
+                        wordel--last-marathon))))
+
+
 
 
 (provide 'wordel)
