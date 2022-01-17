@@ -223,7 +223,8 @@ COLUMNs are zero indexed."
                 ((get-text-property 0 'index string)
                  (or (get-text-property 0 'display string) " "))
                 ((not (string-match-p " " string)) string)))
-             (wordel--split-with-spaces row)))
+             (wordel--split-with-spaces row)
+             ""))
 
 (defun wordel--current-word ()
   "Return current row's word."
