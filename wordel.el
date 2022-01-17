@@ -68,29 +68,6 @@ These are deleted from a puzzle word character."
 (defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--last-game nil "Game state of last played game.")
 (defvar wordel--last-marathon nil "Game state of last played marathon.")
-(defvar wordel--rules
-  (string-join
-   (list
-    (propertize "How to Play" 'face 'wordel-default)
-    "Type a letter into each box to guess the secret word."
-    (concat "Press " (propertize "RETURN" 'face 'help-key-binding) " to submit  your guess.")
-    "Each letter in your guess will be color coded to give you hints:"
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile (propertize "X" 'hint 'wordel-almost))
-            (propertize "  The letter appears in the word at least once." 'display '(raise 0.50)))
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile (propertize "X" 'hint 'wordel-correct))
-            (propertize "  The letter is in this exact spot in the word." 'display '(raise 0.50)))
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile "X")
-            (propertize "  The letter is in not in the word." 'display '(raise 0.50)))
-    "\n"
-    "You get as many guesses as there are rows in the game table.")
-   "\n")
-  "The rules of the game.")
 
 ;;;; Faces
 (defface wordel-correct
@@ -180,7 +157,30 @@ If BOX is non-nil, outline the tile with it."
     (push (or box 'wordel-box) (cadr face))
     (propertize (wordel--pad string) 'face face)))
 
-
+(defun wordel--rules ()
+  "Return the rules string."
+  (string-join
+   (list
+    (propertize "How to Play" 'face 'wordel-default)
+    "Type a letter into each box to guess the secret word."
+    (concat "Press " (propertize "RETURN" 'face 'help-key-binding) " to submit  your guess.")
+    "Each letter in your guess will be color coded to give you hints:"
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile (propertize "X" 'hint 'wordel-almost))
+            (propertize "  The letter appears in the word at least once." 'display '(raise 0.50)))
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile (propertize "X" 'hint 'wordel-correct))
+            (propertize "  The letter is in this exact spot in the word." 'display '(raise 0.50)))
+    "\n"
+    (concat (make-string 2 ?\s)
+            (wordel--tile "X")
+            (propertize "  The letter is in not in the word." 'display '(raise 0.50)))
+    "\n"
+    "You get as many guesses as there are rows in the game table.")
+   "\n")
+  "The rules of the game.")
 
 (defun wordel--row (chars &optional current)
   "Return a row of tiles from CHARS.
@@ -271,7 +271,7 @@ If INDEX is non-nil, start at that column of current row."
         (pcase event
           (?\C-g  (setq done t result 'quit))
           (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
-          (?\C-h  (when (setq help (not help)) (wordel--display-message "%s" wordel--rules)))
+          (?\C-h  (when (setq help (not help)) (wordel--display-message "%s" (wordel--rules))))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
@@ -461,7 +461,7 @@ IF NEW is non-nil, abandon paused marathon, if any."
     (with-current-buffer (get-buffer-create b)
       (unless (derived-mode-p 'special-mode)
         (erase-buffer)
-        (insert wordel--rules)
+        (insert (wordel--rules))
         (insert "\nYou can quit this window by pressing "
                 (propertize (substitute-command-keys "\\<special-mode-map>\\[quit-window].")))
         (special-mode))
