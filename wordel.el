@@ -107,7 +107,6 @@ These are deleted from a puzzle word character."
   (let* ((min (or (car-safe wordel-word-length) wordel-word-length))
          (max (or (cdr-safe wordel-word-length) wordel-word-length)))
     (and (<= min (length word) max)
-         (string-match-p "[AEIOUYaeiouy]" word)
          (not (string-match-p wordel-illegal-characters word)))))
 
 (defun wordel-local-words ()
