@@ -256,7 +256,7 @@ If a valid input word is given, it is compared against WORDS.
 If INDEX is non-nil, start at that column of current row."
   (let ((index      (or index 0))
         (navigators (append '(left right)
-                            (when wordel-want-evil-row-navigation '(?H ?L))))
+                            (when wordel-want-evil-row-navigation '(?H ?L ?0 ?^ ?$))))
         (prev-header header-line-format)
         (header     (mapconcat
                      (lambda (c)
@@ -265,6 +265,7 @@ If INDEX is non-nil, start at that column of current row."
                        ("C-p" . "pause game")
                        ("C-h" . "toggle help"))
                      " "))
+        (limit      (1- wordel-word-length))
         help
         done
         result)
@@ -287,7 +288,9 @@ If INDEX is non-nil, start at that column of current row."
           ((pred (lambda (e) (member e navigators)))
            (pcase event
              ((or 'left  ?H) (when (> index 0)                       (cl-decf index)))
-             ((or 'right ?L) (when (< index (1- wordel-word-length)) (cl-incf index)))))
+             ((or 'right ?L) (when (< index limit) (cl-incf index)))
+             ((or '?0    ?^) (setq index 0))
+             (?$             (setq index limit))))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
@@ -305,7 +308,7 @@ If INDEX is non-nil, start at that column of current row."
              (if (string-match-p wordel-illegal-characters s)
                  (wordel--display-error "Illegal character: %S" s)
                (wordel--display-char (upcase s))
-               (when (< index (1- wordel-word-length))
+               (when (< index limit)
                  (cl-incf index))))))))
     (setq header-line-format prev-header)
     result))
