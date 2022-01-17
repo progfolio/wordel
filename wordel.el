@@ -275,7 +275,7 @@ If INDEX is non-nil, start at that column of current row."
       ;; @HACK: Is there a better way to catch a quit signal from read-event?
       ;; Thought I could wrap the call in a `condition-case', but that doesn't seem
       ;; do the trick on its own. ~ NV 2022-01-14
-      (let ((event (let ((inhibit-quit t)) (read-event " "))))
+      (let ((event (let ((inhibit-quit t)) (read-event header))))
         (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
           ((guard help) (when (member event '(?q ?\C-h))
