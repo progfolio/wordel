@@ -183,8 +183,7 @@ If BOX is non-nil, outline the tile with it."
             (propertize "  The letter is in not in the word." 'display '(raise 0.50)))
     "\n"
     "You get as many guesses as there are rows in the game table.")
-   "\n")
-  "The rules of the game.")
+   "\n"))
 
 (defun wordel--row (chars &optional current)
   "Return a row of tiles from CHARS.
