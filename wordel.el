@@ -251,8 +251,9 @@ STRING and OBJECTS are passed to `format', which see."
   (wordel--display-message
    "%s" (propertize (apply #'format string objects) 'face 'wordel-error)))
 
-(defun wordel-read-word (words &optional index)
-  "Read word and test against WORDS.
+(defun wordel--read-inputs (words &optional index)
+  "Read user inputs during game loop.
+If a valid input word is given, it is compared against WORDS.
 If INDEX is non-nil, start at that column of current row."
   (let ((index (or index 0))
         (header header-line-format)
@@ -374,7 +375,7 @@ Return a state plist."
           (let ((index (wordel--unpause inputs)))
             (setq inputs nil)
             (cl-incf attempts)
-            (pcase (wordel-read-word words index)
+            (pcase (wordel--read-inputs words index)
               ('quit                 (setq outcome 'quit))
               ((and (pred listp) it) (setq outcome 'pause inputs it) (cl-decf attempts))
               (it                    (push (wordel--row (wordel--comparison it word))
