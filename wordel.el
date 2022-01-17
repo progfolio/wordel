@@ -285,7 +285,7 @@ If INDEX is non-nil, start at that column of current row."
                      (quit-window))))
           ((pred (lambda (e) (member e navigators)))
            (pcase event
-             ((or 'left  ?H) (when (> index 0)                        (cl-decf index)))
+             ((or 'left  ?H) (when (> index 0)                       (cl-decf index)))
              ((or 'right ?L) (when (< index (1- wordel-word-length)) (cl-incf index)))))
           ('return
            (let ((word (wordel--current-word)))
