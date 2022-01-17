@@ -162,27 +162,27 @@ If BOX is non-nil, outline the tile with it."
 
 (defun wordel--rules ()
   "Return the rules string."
-  (string-join
-   (list
-    (propertize "How to Play" 'face 'wordel-default)
-    "Type a letter into each box to guess the secret word."
-    (concat "Press " (propertize "RETURN" 'face 'help-key-binding) " to submit  your guess.")
-    "Each letter in your guess will be color coded to give you hints:"
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile (propertize "X" 'hint 'wordel-almost))
-            (propertize "  The letter appears in the word at least once." 'display '(raise 0.50)))
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile (propertize "X" 'hint 'wordel-correct))
-            (propertize "  The letter is in this exact spot in the word." 'display '(raise 0.50)))
-    "\n"
-    (concat (make-string 2 ?\s)
-            (wordel--tile "X")
-            (propertize "  The letter is in not in the word." 'display '(raise 0.50)))
-    "\n"
-    "You get as many guesses as there are rows in the game table.")
-   "\n"))
+  (propertize
+   (string-join
+    (list
+     (propertize "How to Play" 'face 'wordel-default)
+     "Type a letter into each box to guess the secret word."
+     (concat "Press " (propertize "RETURN" 'face 'help-key-binding) " to submit your guess.")
+     "Each letter in your guess will be color coded to give you hints:"
+     "\n"
+     (mapconcat
+      (lambda (cell)
+        (format "  %s  %s" (car cell) (propertize (cdr cell) 'display '(raise 0.50))))
+      `((,(wordel--tile (propertize "X" 'hint 'wordel-almost))
+         . "The letter appears in the word at least once.")
+        (,(wordel--tile (propertize "X" 'hint 'wordel-correct))
+         . "The letter is in this exact spot in the word.")
+        (,(wordel--tile "X") . "The letter is in not in the word."))
+      "\n")
+     "\n"
+     "You get as many guesses as there are rows in the game table.")
+    "\n")
+   'wordel-rules t))
 
 (defun wordel--row (chars &optional current)
   "Return a row of tiles from CHARS.
@@ -261,21 +261,27 @@ If INDEX is non-nil, start at that column of current row."
         done
         result)
     (setq header-line-format
-          (concat (propertize "C-g" 'face 'help-key-binding) " to quit game. "
-                  (propertize "C-p" 'face 'help-key-binding) " to pause game. "
-                  (propertize "C-h" 'face 'help-key-binding) " to toggle help. "))
+          (mapconcat
+           (lambda (c)
+             (concat (propertize (car c) 'face 'help-key-binding) " " (cdr c)))
+           '(("C-g" . "quit game")
+             ("C-p" . "pause game")
+             ("C-h" . "toggle help"))
+           " "))
     (while (not done)
       (wordel--position-cursor index)
       ;; @HACK: Is there a better way to catch a quit signal from read-event?
       ;; Thought I could wrap the call in a `condition-case', but that doesn't seem
       ;; do the trick on its own. ~ NV 2022-01-14
-      (let ((event (let ((inhibit-quit t))
-                     (read-event "Wordel: Press C-g to quit game, C-p to pause, C-h to toggle help."))))
+      (let ((event (let ((inhibit-quit t)) (read-event " "))))
         (wordel--display-message "%s" " ") ;;clear messages
         (pcase event
           (?\C-g  (setq done t result 'quit))
           (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
-          (?\C-h  (when (setq help (not help)) (wordel--display-message "%s" (wordel--rules))))
+          (?\C-h (if (setq help (not help))
+                     (wordel-help)
+                   (with-current-buffer (concat wordel-buffer "<help>")
+                     (quit-window))))
           ((pred (lambda (e) (member e navigators)))
            (pcase event
              ((or 'left  ?H) (when (> index 0)                        (cl-decf index)))
@@ -293,12 +299,14 @@ If INDEX is non-nil, start at that column of current row."
           ('backspace (wordel--display-char " ")
                       (when (> index 0) (cl-decf index)))
           ((pred characterp)
-           (let ((s (char-to-string event)))
-             (if (string-match-p wordel-illegal-characters s)
-                 (wordel--display-error "Illegal character: %S" s)
-               (wordel--display-char (upcase s))
-               (when (< index (1- wordel-word-length))
-                 (cl-incf index))))))))
+           (if (and help (eq event ?q))
+               (progn (setq help nil) (quit-window))
+             (let ((s (char-to-string event)))
+               (if (string-match-p wordel-illegal-characters s)
+                   (wordel--display-error "Illegal character: %S" s)
+                 (wordel--display-char (upcase s))
+                 (when (< index (1- wordel-word-length))
+                   (cl-incf index)))))))))
     (setq header-line-format header)
     result))
 
@@ -467,12 +475,14 @@ IF NEW is non-nil, abandon paused marathon, if any."
   (interactive)
   (let ((b (concat wordel-buffer "<help>")))
     (with-current-buffer (get-buffer-create b)
-      (unless (derived-mode-p 'special-mode)
+      (with-silent-modifications
         (erase-buffer)
-        (insert (wordel--rules))
-        (insert "\nYou can quit this window by pressing "
-                (propertize (substitute-command-keys "\\<special-mode-map>\\[quit-window].")))
-        (special-mode))
+        (insert
+         (wordel--rules)
+         "\nYou can quit this window by pressing "
+         (propertize (substitute-command-keys "\\<special-mode-map>\\[quit-window]."))
+         "\n"))
+      (special-mode)
       (pop-to-buffer-same-window (current-buffer)))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
