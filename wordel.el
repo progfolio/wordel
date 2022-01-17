@@ -64,6 +64,10 @@ Each candidate should be on a separate line."
 These are deleted from a puzzle word character."
   :type 'regexp)
 
+(defcustom wordel-want-evil-row-navigation t
+  "If non-nil, \"H\" and \"L\" move the cursor left and right in the game board."
+  :type 'boolean)
+
 ;;;; Variables
 (defvar wordel-buffer "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--last-game nil "Game state of last played game.")
@@ -253,6 +257,7 @@ STRING and OBJECTS are passed to `format', which see."
 If INDEX is non-nil, start at that column of current row."
   (let ((index (or index 0))
         (header header-line-format)
+        (navigators (append '(left right) (when wordel-want-evil-row-navigation '(?H ?L))))
         help
         done
         result)
@@ -272,6 +277,10 @@ If INDEX is non-nil, start at that column of current row."
           (?\C-g  (setq done t result 'quit))
           (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
           (?\C-h  (when (setq help (not help)) (wordel--display-message "%s" (wordel--rules))))
+          ((pred (lambda (e) (member e navigators)))
+           (pcase event
+             ((or 'left  ?H) (when (> index 0)                        (cl-decf index)))
+             ((or 'right ?L) (when (< index (1- wordel-word-length)) (cl-incf index)))))
           ('return
            (let ((word (wordel--current-word)))
              (if (and (wordel-legal-p word)
