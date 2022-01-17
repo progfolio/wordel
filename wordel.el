@@ -254,20 +254,21 @@ STRING and OBJECTS are passed to `format', which see."
   "Read user inputs during game loop.
 If a valid input word is given, it is compared against WORDS.
 If INDEX is non-nil, start at that column of current row."
-  (let ((index (or index 0))
-        (header header-line-format)
-        (navigators (append '(left right) (when wordel-want-evil-row-navigation '(?H ?L))))
+  (let ((index      (or index 0))
+        (navigators (append '(left right)
+                            (when wordel-want-evil-row-navigation '(?H ?L))))
+        (prev-header header-line-format)
+        (header     (mapconcat
+                     (lambda (c)
+                       (concat (propertize (car c) 'face 'help-key-binding) " " (cdr c)))
+                     '(("C-g" . "quit game")
+                       ("C-p" . "pause game")
+                       ("C-h" . "toggle help"))
+                     " "))
         help
         done
         result)
-    (setq header-line-format
-          (mapconcat
-           (lambda (c)
-             (concat (propertize (car c) 'face 'help-key-binding) " " (cdr c)))
-           '(("C-g" . "quit game")
-             ("C-p" . "pause game")
-             ("C-h" . "toggle help"))
-           " "))
+    (setq header-line-format header)
     (while (not done)
       (wordel--position-cursor index)
       ;; @HACK: Is there a better way to catch a quit signal from read-event?
@@ -279,7 +280,7 @@ If INDEX is non-nil, start at that column of current row."
           (?\C-g  (setq done t result 'quit))
           (?\C-p  (setq done t result (wordel--split-with-spaces (wordel--current-word))))
           (?\C-h (if (setq help (not help))
-                     (wordel-help)
+                     (wordel-help header)
                    (with-current-buffer (concat wordel-buffer "<help>")
                      (quit-window))))
           ((pred (lambda (e) (member e navigators)))
@@ -307,7 +308,7 @@ If INDEX is non-nil, start at that column of current row."
                  (wordel--display-char (upcase s))
                  (when (< index (1- wordel-word-length))
                    (cl-incf index)))))))))
-    (setq header-line-format header)
+    (setq header-line-format prev-header)
     result))
 
 (defun wordel--print-board (rows limit)
@@ -470,8 +471,9 @@ IF NEW is non-nil, abandon paused marathon, if any."
            "\\[wordel-help] to display help. ")))
 
 ;;;###autoload
-(defun wordel-help ()
-  "Display game rules."
+(defun wordel-help (&optional header)
+  "Display game rules.
+If HEADER is non-nil use it for `header-line-format'."
   (interactive)
   (let ((b (concat wordel-buffer "<help>")))
     (with-current-buffer (get-buffer-create b)
@@ -483,6 +485,7 @@ IF NEW is non-nil, abandon paused marathon, if any."
          (propertize (substitute-command-keys "\\<special-mode-map>\\[quit-window]."))
          "\n"))
       (special-mode)
+      (setq header-line-format header)
       (pop-to-buffer-same-window (current-buffer)))))
 
 (define-derived-mode wordel-mode special-mode "Wordel"
