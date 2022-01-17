@@ -365,7 +365,7 @@ Return a state plist."
           (erase-buffer)
           (goto-char (point-min))
           (wordel--print-board rows limit)
-          (insert "\n\n" (propertize " " 'message-area t)))
+          (insert "\n\n" (propertize " " 'message-area t) "\n\n"))
         (cond
          ((when-let ((r (car rows))) (string= (wordel--row-to-word r) word))
           (setq outcome 'win))
