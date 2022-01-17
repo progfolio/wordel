@@ -1,4 +1,4 @@
-#+title: Wordel: Wordle (aka Lingo) in Emacs
+#+title: Wordel: [[https://www.powerlanguage.co.uk/wordle/][Wordle]] (aka Lingo) in Emacs
 
 [[./demo.gif]]
 
