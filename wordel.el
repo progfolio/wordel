@@ -54,7 +54,7 @@ It takes no words and returns a list of strings."
 (defcustom wordel-word-file
   (expand-file-name "./words.txt" (file-name-directory
                                    (file-truename
-                                    (or (buffer-file-name) load-file-name))))
+                                    (or load-file-name (buffer-file-name)))))
   "File containing puzzle word candidates.
 Each candidate should be on a separate line."
   :type 'file)
