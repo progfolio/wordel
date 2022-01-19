@@ -131,7 +131,7 @@ These are deleted from a puzzle word character."
                start! score! word! words! wordlen!) ;pacify bytecompiler
        ,@body)))
 
-(defun wordel-legal-p (string length)
+(defun wordel--legal-word-p (string length)
   "Return t if STRING is a legal word of LENGTH, nil otherwise."
   (and (= (length string) length)
        (not (string-match-p wordel-illegal-characters string))))
@@ -140,7 +140,7 @@ These are deleted from a puzzle word character."
   "Return a puzzle word N letters long from `wordel-word-file'."
   (with-temp-buffer
     (insert-file-contents wordel-word-file)
-    (cl-delete-if-not (lambda (word) (wordel-legal-p word n))
+    (cl-delete-if-not (lambda (word) (wordel--legal-word-p word n))
                       (split-string (upcase (buffer-string)) "\n"))))
 
 (defun wordel--random-word (candidates)
@@ -328,15 +328,20 @@ Otherwise whichever is closer."
     (setq this-command 'ignore)
     (wordel--input-char (upcase input))))
 
+(defun wordel--clean-up ()
+  "Disable gameplay modes; clean state."
+  (wordel-input-mode -1)
+  (wordel-integrity-mode -1)
+  (setq wordel--game nil)
+  ;; Leaving point on the board gives impression that input can still be given.
+  (goto-char (point-max)))
+
 (defun wordel-quit-game ()
   "Quit the current game."
   (interactive)
   (wordel--with-state wordel--game
     (wordel--display-message "The word was %S, quitter." word!)
-    (setq wordel--game nil)
-    ;; Leaving point on the board gives impression that input can still be given.
-    (goto-char (point-max))
-    (wordel-input-mode -1)))
+    (wordel--clean-up)))
 
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
@@ -360,55 +365,57 @@ Otherwise whichever is closer."
                  g)
              collect g)))
 
+(defun wordel--valid-guess-p (guess length words)
+  "Return t if GUESS is valid.
+It's LENGTH and content are checked via `wordel--legal-word-p'.
+It also must be a `member' of WORDS."
+  (or (and (wordel--legal-word-p guess length)
+           (member guess words))
+      (wordel--display-error
+       (if (string-match-p wordel-illegal-characters guess)
+           "Not enough letters: %S"
+         "Word not in word list: %S")
+       guess)))
+
 (defun wordel-submit-guess ()
   "Submit the current guess."
   (interactive)
   (wordel--with-state wordel--game
-    (let ((guess (wordel--current-word)))
-      (if (not (and (wordel-legal-p guess wordlen!)
-                    (member guess words!)))
-          (wordel--display-error
-           (if (string-match-p wordel-illegal-characters guess)
-               "Not enough letters: %S"
-             "Word not in word list: %S")
-           guess)
-        (setf (plist-get state! :attempts!) (cl-incf attempts!)
-              (plist-get state! :rows!)
-              (push (wordel--row (wordel--comparison guess word!)) rows!))
+    (when-let ((guess (wordel--current-word))
+               ((wordel--valid-guess-p guess wordlen! words!)))
+      (setf (plist-get state! :attempts!) (cl-incf attempts!)
+            (plist-get state! :rows!)
+            (push (wordel--row (wordel--comparison guess word!)) rows!))
+      (wordel--insert-board)
+      (cond
+       ((equal guess word!)
+        ;; Prevent current row from being inserted
+        (setf (plist-get state! :rows!)
+              (append (make-list (- limit! attempts!)
+                                 (wordel--row (make-list wordlen! " ")))
+                      rows!))
         (wordel--insert-board)
-        (cond
-         ((equal guess word!)
-          ;; Prevent current row from being inserted
-          (setf (plist-get state! :rows!)
-                (append (make-list (- limit! attempts!)
-                                   (wordel--row (make-list wordlen! " ")))
-                        rows!))
-          (wordel--insert-board)
-          (if wordel-marathon-mode
-              (condition-case-unless-debug _
-                  (wordel (list :rounds!  (cl-incf rounds!)
-                                :wordlen! (cl-incf wordlen!)
-                                :limit!   (if (zerop (mod rounds! 3))
-                                              (cl-decf limit!)
-                                            limit!)
-                                :score! (+ rounds! (- limit! attempts!))))
-                ((error)
-                 (wordel--display-message
-                  "You BEAT THE DICTIONARY! Final Score: %d" score!)
-                 (wordel-input-mode -1)
-                 (setq wordel--game nil)))
-            (wordel--display-message "You WON!"))
-          (unless wordel-marathon-mode
-            (wordel-input-mode -1)
-            (setq wordel--game nil)))
-         ((>= attempts! limit!)
-          (apply #'wordel--display-message
-                 `(,(concat "YOU LOST! The word was %S."
-                            (when wordel-marathon-mode " Final Score: %d"))
-                   ,@(delq nil (list word! (when wordel-marathon-mode score!)))))
-          (wordel-input-mode -1)
-          (setq wordel--game nil))
-         (t (wordel--position-cursor (setf (plist-get state! :index!) 0))))))))
+        (if wordel-marathon-mode
+            (condition-case-unless-debug _
+                (wordel (list :rounds!  (cl-incf rounds!)
+                              :wordlen! (cl-incf wordlen!)
+                              :limit!   (if (zerop (mod rounds! 3))
+                                            (cl-decf limit!)
+                                          limit!)
+                              :score! (+ rounds! (- limit! attempts!))))
+              ((error)
+               (wordel--display-message
+                "You BEAT THE DICTIONARY! Final Score: %d" score!)
+               (wordel--clean-up)))
+          (wordel--display-message "You WON!"))
+        (unless wordel-marathon-mode (wordel--clean-up)))
+       ((>= attempts! limit!)
+        (apply #'wordel--display-message
+               `(,(concat "YOU LOST! The word was %S."
+                          (when wordel-marathon-mode " Final Score: %d"))
+                 ,@(delq nil (list word! (when wordel-marathon-mode score!)))))
+        (wordel--clean-up))
+       (t (wordel--position-cursor (setf (plist-get state! :index!) 0)))))))
 
 (defun wordel--display-char (char)
   "Display CHAR in current box."
