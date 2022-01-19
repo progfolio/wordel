@@ -23,6 +23,9 @@ There are two main modes of game play.
 To play a regular game, =M-x wordel=.
 To play a marathon (a series of puzzles which increase in difficulty), enable =wordel-marathon-mode=.
 
+* Evil users
+See [[https://www.github.com/progfolio/wordel/issues/1][this issue]].
+
 * Notice:
 
 I wrote this for fun over the past couple of days.
