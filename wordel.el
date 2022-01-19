@@ -52,9 +52,10 @@ It should accept one argument, the desired length of the words."
   :type 'function)
 
 (defcustom wordel-word-file
-  (expand-file-name "./words.txt" (file-name-directory
-                                   (file-truename
-                                    (or load-file-name (buffer-file-name)))))
+  (expand-file-name "./words/scrabble.txt"
+                    (file-name-directory
+                     (file-truename
+                      (or load-file-name (buffer-file-name)))))
   "File containing puzzle word candidates.
 Each candidate should be on a separate line."
   :type 'file)
