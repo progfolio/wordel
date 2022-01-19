@@ -296,9 +296,8 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
       (pop-to-buffer-same-window (current-buffer)))))
 
 ;;;###autoload
-(defun wordel-help (&optional header)
-  "Display game rules.
-If HEADER is non-nil use it for `header-line-format'."
+(defun wordel-help ()
+  "Display game rules."
   (interactive)
   (let ((b (concat wordel-buffer "<help>")))
     (with-current-buffer (get-buffer-create b)
@@ -306,7 +305,6 @@ If HEADER is non-nil use it for `header-line-format'."
       (with-silent-modifications
         (erase-buffer)
         (insert (wordel--rules)))
-      (setq header-line-format header)
       (pop-to-buffer-same-window (current-buffer)))))
 
 (defun wordel--clamp (n min max)
