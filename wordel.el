@@ -119,12 +119,12 @@ These are deleted from a puzzle word character."
   (declare (indent 1) (debug t))
   `(let ((state! ,state))
      (cl-destructuring-bind
-         (&key attempts! index! limit!
-               rows! rounds! start! word! words! wordlen!
+         (&key attempts! index! limit! rows! rounds!
+               score! start! word! words! wordlen!
                &allow-other-keys)
          ,state
-       (ignore state! attempts! index! limit!
-               rows! rounds! start! word! words! wordlen!) ;pacify bytecompiler
+       (ignore state! attempts! index! limit! rows! rounds!
+               start! score! word! words! wordlen!) ;pacify bytecompiler
        ,@body)))
 
 (defun wordel-legal-p (string length)
@@ -256,6 +256,7 @@ If PROPS are non-nil, they are used in place of default values."
                           (limit!    wordel-attempt-limit)
                           (attempts! 0)
                           (rounds!   0)
+                          (score!    0)
                           rows!
                           &allow-other-keys &aux
                           (start! (current-time)))
@@ -265,6 +266,7 @@ If PROPS are non-nil, they are used in place of default values."
           :limit!    limit!
           :rows!     rows!
           :rounds!   rounds!
+          :score!    score!
           :start!    start!
           :word!     word!
           :words!    words!
@@ -377,10 +379,11 @@ Otherwise whichever is closer."
                                 :wordlen! (cl-incf wordlen!)
                                 :limit!   (if (zerop (mod rounds! 3))
                                               (cl-decf limit!)
-                                            limit!)))
+                                            limit!)
+                                :score! (+ rounds! (- limit! attempts!))))
                 ((error)
                  (wordel--display-message
-                  "You BEAT THE DICTIONARY! Final Score: %d" rounds!)
+                  "You BEAT THE DICTIONARY! Final Score: %d" score!)
                  (wordel-input-mode -1)
                  (setq wordel--game nil)))
             (wordel--display-message "You WON!"))
@@ -391,7 +394,7 @@ Otherwise whichever is closer."
           (apply #'wordel--display-message
                  `(,(concat "YOU LOST! The word was %S."
                             (when wordel-marathon-mode " Final Score: %d"))
-                   ,@(delq nil (list word! (when wordel-marathon-mode rounds!)))))
+                   ,@(delq nil (list word! (when wordel-marathon-mode score!)))))
           (wordel-input-mode -1)
           (setq wordel--game nil))
          (t (wordel--position-cursor (setf (plist-get state! :index!) 0))))))))
