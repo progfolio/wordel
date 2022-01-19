@@ -10,7 +10,7 @@ You guess a word and each letter of your word will be color coded to reveal how 
 ** With straight.el
 
 #+begin_src emacs-lisp :lexical t
-(straight-use-package '(wordel :host github :repo "progfolio/wordel" :files (:defaults "words.txt")))
+(straight-use-package '(wordel :host github :repo "progfolio/wordel" :files (:defaults "words")))
 #+end_src
 
 ** Manually
