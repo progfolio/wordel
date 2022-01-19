@@ -373,6 +373,12 @@ Otherwise whichever is closer."
         (wordel--insert-board)
         (cond
          ((equal guess word!)
+          ;; Prevent current row from being inserted
+          (setf (plist-get state! :rows!)
+                (append (make-list (- limit! attempts!)
+                                   (wordel--row (make-list wordlen! " ")))
+                        rows!))
+          (wordel--insert-board)
           (if wordel-marathon-mode
               (condition-case-unless-debug _
                   (wordel (list :rounds!  (cl-incf rounds!)
