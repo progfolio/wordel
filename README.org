@@ -2,6 +2,9 @@
 
 [[./demo.gif]]
 
+For the uninitiated, this is a process of elimination word game.
+You guess a word and each letter of your word will be color coded to reveal how it relates to the hidden word.
+
 * Install
 
 ** With straight.el
@@ -14,6 +17,11 @@
 - Clone this repo into your load-path
 - =(require 'wordel)=
 - =M-x wordel=
+
+* Playing
+There are two main modes of game play.
+To play a regular game, =M-x wordel=.
+To play a marathon (a series of puzzles which increase in difficulty), enable =wordel-marathon-mode=.
 
 * Notice:
 
