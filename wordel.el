@@ -73,6 +73,10 @@ These are deleted from a puzzle word character."
 - `$` or `E` move cursor to end of word"
   :type 'boolean)
 
+(defcustom wordel-i-am-a-cheater nil
+  "When non-nil, you are a cheater."
+  :type 'boolean)
+
 ;;;; Variables
 (defvar wordel-buffer    "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--game nil "State of the game.")
@@ -290,6 +294,7 @@ If PROPS are non-nil, they are used in place of default values."
   "Initialize a new game.
 If STATE is non-nil, it is used in lieu of `wordel--game'."
   (interactive)
+  (unless wordel-i-am-a-cheater (wordel-integrity-mode))
   (wordel--with-state (setq wordel--game (wordel--state state))
     (wordel--insert-board)
     (with-current-buffer wordel-buffer
@@ -561,6 +566,27 @@ candidate word returned by wordel-words-function.")))
                  "Help: \\[wordel-help]"
                  "Toggle Marathon: \\[wordel-marathon-mode]"))
      " "))))
+
+(defun wordel-integrity-p (player &rest integrity)
+  "Return t if the PLAYER has INTEGRITY, nil otherwise."
+  (if (eq (car integrity) 'wordel--game)
+      (with-current-buffer (get-buffer-create "*HELP!!!!*")
+        (with-silent-modifications
+          (erase-buffer)
+          (insert
+           (format
+            "wordel--game is a variable defined in ‘%s’."
+            (propertize "home/users/cheater/couldnt-help-myself.el" 'face 'button))))
+        (help-mode)
+        (display-buffer (current-buffer)))
+    (apply player integrity)))
+
+(define-minor-mode wordel-integrity-mode
+  "Disabling this mode may cause spiritual damage."
+  :lighter "wordel-integrity"
+  (if wordel-integrity-mode
+      (advice-add #'describe-variable :around #'wordel-integrity-p)
+    (advice-remove #'describe-variable #'wordel-integrity-p)))
 
 (provide 'wordel)
 ;;; wordel.el ends here
