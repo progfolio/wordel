@@ -529,7 +529,7 @@ Move point to previous column."
      "The letters \"C\" and \"E\" are in the word, but not in the right spot."
      "\n"
      (wordel--row (wordel--comparison "MACES" "EMACS"))
-     "The letters \"S\" is in the word and in the correct spot."
+     "The letter \"S\" is in the word and in the correct spot."
      "\n"
      (wordel--row (wordel--comparison "EMACS" "EMACS"))
      "The word was guessed correctly."
