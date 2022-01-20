@@ -341,7 +341,7 @@ If PROPS are non-nil, they are used in place of default values."
     "The game is over when the word is guessed correctly, \
 or the player runs out of table rows to guess in."
     "\n"
-    (propertize "Marathon " 'face 'wordel-default)
+    (propertize "Marathon Mode" 'face 'wordel-default)
     "Each round is a puzzle as described above."
     "The length of the word increases by one each round."
     "Every 3 rounds, the number of guesses is reduced by one."
