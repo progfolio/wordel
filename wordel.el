@@ -88,7 +88,7 @@ These are deleted from a puzzle word character."
   "Face for a guessed letter which matches its position in the puzzle word.")
 
 (defface wordel-almost
-  '((t (:background "#bf9f3b")))
+  '((t (:background "#BF9F3B")))
   "Face for a guessed letter which is included in the puzzle word.")
 
 (defface wordel-box
@@ -104,11 +104,11 @@ These are deleted from a puzzle word character."
   "Face for space between letter boxes.")
 
 (defface wordel-default
-  '((t ( :weight ultra-bold :background "#3A3A3C" :foreground "#D7DADC" :height 3.0)))
+  '((t (:weight ultra-bold :background "#3A3A3C" :foreground "#D7DADC" :height 3.0)))
   "Default face for a wordel letter.")
 
 (defface wordel-error
-  '((t ( :inherit compilation-error)))
+  '((t (:inherit compilation-error)))
   "Default face for a wordel error message.")
 
 (define-minor-mode wordel-marathon-mode "Variation of wordel with multiple rounds."
