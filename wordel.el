@@ -171,8 +171,8 @@ If BOX is non-nil, outline the tile with it."
 If CURRENT is non-nil, mark row as current."
   (string-join
    (cl-loop for i from 0 to (1- (length strings))
-            for c = (nth i strings)
-            collect (wordel--tile (if current (propertize c 'index i) c)
+            for s = (nth i strings)
+            collect (wordel--tile (if current (propertize s 'index i) s)
                                   (when current 'wordel-current-box)))
    (propertize " " 'face 'wordel-spacer)))
 
