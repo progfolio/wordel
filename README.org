@@ -16,18 +16,14 @@ You guess a word and each letter of your word will be color coded to reveal how 
 ** Manually
 - Clone this repo into your load-path
 - =(require 'wordel)=
-- =M-x wordel=
-
-* Playing
-There are two main modes of game play.
-To play a regular game, =M-x wordel=.
-To play a marathon (a series of puzzles which increase in difficulty), enable =wordel-marathon-mode=.
+- =M-x wordel= or =M-x wordel-marathon=
 
 * Evil users
-See [[https://www.github.com/progfolio/wordel/issues/1][this issue]].
+You'll want to be in insert mode for wordel's modes:
 
-* Notice:
 
-I wrote this for fun over the past couple of days.
-Expect bugs.
+#+begin_src emacs-lisp :lexical t
+(evil-set-initial-state 'wordel-mode        'insert)
+(evil-set-initial-state 'wordel-select-mode 'insert)
+#+end_src
 
