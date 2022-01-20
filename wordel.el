@@ -433,7 +433,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
   (setq wordel-word-list-file path)
   (if (equal (buffer-name) wordel-buffer)
       (setq header-line-format (wordel--commands-text))
-  (message "Wordel wordlist set to %S" (file-name-nondirectory path))))
+    (message "Wordel wordlist set to %S" (file-name-nondirectory path))))
 
 (defun wordel--row-to-word (row)
   "Return character display properties of ROW."
