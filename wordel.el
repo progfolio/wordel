@@ -381,7 +381,7 @@ It also must be a `member' of WORDS."
 
 ;;;###autoload
 (defun wordel (&optional state)
-  "Initialize a new game.
+  "Start a new game.
 If STATE is non-nil, it is used in lieu of `wordel--game'."
   (interactive)
   (wordel--with-state (setq wordel--game (wordel--state state))
