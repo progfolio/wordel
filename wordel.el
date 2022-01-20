@@ -61,7 +61,7 @@ Wordel ships with multiple word lists. If you change this directory,
 you are responsible for populating it with word lists."
   :type 'directory)
 
-(defcustom wordel-word-list-file (expand-file-name "wordle" wordel-words-dir)
+(defcustom wordel-word-list-file (expand-file-name "scrabble" wordel-words-dir)
   "File containing puzzle word candidates.
 Each candidate should be on a separate line."
   :type 'file)
