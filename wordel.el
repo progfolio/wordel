@@ -521,7 +521,7 @@ Move point to previous column."
   (wordel--change-col 'next n))
 
 (defun wordel-prev-column (&optional n)
-  "Move forward N columnss."
+  "Move forward N columns."
   (interactive "p")
   (wordel--change-col 'prev n))
 
@@ -542,7 +542,7 @@ Move point to previous column."
     (wordel--display-message "The word was %S, quitter." word!)
     (wordel--clean-up)))
 
-;;; Key bindngs
+;;; Key bindings
 (define-key wordel-mode-map (kbd "M-h")     'wordel-help)
 (define-key wordel-mode-map (kbd "M-q")     'wordel-quit-game)
 (define-key wordel-mode-map (kbd "RET")     'wordel-submit-guess)
