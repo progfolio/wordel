@@ -119,6 +119,9 @@ These are deleted from a puzzle word character."
 (define-minor-mode wordel-marathon-mode "Variation of wordel with multiple rounds."
   :lighter " Wordel-m"
   (with-current-buffer wordel-buffer
+    (if wordel-marathon-mode
+        (add-hook 'wordel-mode-hook #'wordel-marathon-mode)
+      (remove-hook 'wordel-mode-hook #'wordel-marathon-mode))
     (setq header-line-format (wordel--commands-text))))
 
 (defun wordel--commands-text ()
