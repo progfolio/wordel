@@ -120,7 +120,7 @@ These are deleted from a puzzle word character."
   (setq header-line-format (wordel--commands-text)))
 
 (defmacro wordel--with-state (state &rest body)
-  "Provides anaphoric bindings to variable STATE during BODY."
+  "Provide anaphoric bindings to variable STATE during BODY."
   (declare (indent 1) (debug t))
   `(let ((state! ,state))
      (cl-destructuring-bind
