@@ -392,6 +392,13 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
       (pop-to-buffer-same-window (current-buffer)))))
 
 ;;;###autoload
+(defun wordel-marathon ()
+  "Start a new marathon."
+  (interactive)
+  (wordel)
+  (with-current-buffer wordel-buffer (wordel-marathon-mode)))
+
+;;;###autoload
 (defun wordel-help ()
   "Display game rules."
   (interactive)
