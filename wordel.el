@@ -51,11 +51,12 @@ It may also be a cons sell of form: (MIN . MAX)."
 It should accept one argument, the desired length of the words."
   :type 'function)
 
+(defvar wordel-dir
+  (file-name-directory (file-truename (or load-file-name (buffer-file-name))))
+  "Directory where wordel source files are stored.")
+
 (defcustom wordel-word-file
-  (expand-file-name "./words/scrabble.txt"
-                    (file-name-directory
-                     (file-truename
-                      (or load-file-name (buffer-file-name)))))
+  (expand-file-name "./words/scrabble.txt" wordel-dir)
   "File containing puzzle word candidates.
 Each candidate should be on a separate line."
   :type 'file)
