@@ -294,10 +294,10 @@ If PROPS are non-nil, they are used in place of default values."
   "Initialize a new game.
 If STATE is non-nil, it is used in lieu of `wordel--game'."
   (interactive)
-  (unless wordel-i-am-a-cheater (wordel-integrity-mode))
   (wordel--with-state (setq wordel--game (wordel--state state))
     (wordel--insert-board)
     (with-current-buffer wordel-buffer
+      (unless wordel-i-am-a-cheater (wordel-integrity-mode))
       (wordel-input-mode)
       (wordel--position-cursor index!)
       (pop-to-buffer-same-window (current-buffer)))))
