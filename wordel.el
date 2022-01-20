@@ -51,12 +51,17 @@ It may also be a cons sell of form: (MIN . MAX)."
 It should accept one argument, the desired length of the words."
   :type 'function)
 
-(defvar wordel-dir
+(defconst wordel--source-dir
   (file-name-directory (file-truename (or load-file-name (buffer-file-name))))
   "Directory where wordel source files are stored.")
 
-(defcustom wordel-word-file
-  (expand-file-name "./words/scrabble.txt" wordel-dir)
+(defcustom wordel-words-dir (expand-file-name "words/" wordel--source-dir)
+  "Directory where word lists are stored.
+Wordel ships with multiple word lists. If you change this directory,
+you are responsible for populating it with word lists."
+  :type 'directory)
+
+(defcustom wordel-word-list-file (expand-file-name "basic" wordel-words-dir)
   "File containing puzzle word candidates.
 Each candidate should be on a separate line."
   :type 'file)
@@ -118,18 +123,25 @@ These are deleted from a puzzle word character."
 
 (defun wordel--commands-text ()
   "Return commands text."
-  (concat
-   (propertize (concat "WORDEL" (when wordel-marathon-mode " MARATHON"))
-               'face '(:weight bold))
-   " "
-   (substitute-command-keys
-    (string-join
-     (delq nil
-           (list (when wordel--game "Quit Game: \\[wordel-quit-game]")
-                 (unless wordel--game "New Game: \\[wordel]")
-                 "Help: \\[wordel-help]"
-                 (unless wordel--game "Toggle Marathon: \\[wordel-marathon-mode]")))
-     " "))))
+  (let ((word-list (file-name-nondirectory wordel-word-list-file)))
+    (concat
+     (propertize (concat "WORDEL" (when wordel-marathon-mode " MARATHON"))
+                 'face '(:weight bold))
+     " "
+     (substitute-command-keys
+      (string-join
+       (delq
+        nil
+        (list (when wordel--game "Quit Game: \\[wordel-quit-game]")
+              (unless wordel--game "New Game: \\[wordel]")
+              "Help: \\[wordel-help]"
+              (unless wordel--game "Toggle Marathon: \\[wordel-marathon-mode]")
+              (if wordel--game
+                  (propertize
+                   (format "Word list: %S" word-list)
+                   'face '(:weight bold))
+                (format "Choose Word list (%s): \\[wordel-choose-word-list]" word-list))))
+       " ")))))
 
 (defmacro wordel--with-state (state &rest body)
   "Provide anaphoric bindings to variable STATE during BODY."
@@ -152,7 +164,7 @@ These are deleted from a puzzle word character."
 (defun wordel-local-words (n)
   "Return a puzzle word N letters long from `wordel-word-file'."
   (with-temp-buffer
-    (insert-file-contents wordel-word-file)
+    (insert-file-contents wordel-word-list-file)
     (cl-delete-if-not (lambda (word) (wordel--legal-word-p word n))
                       (split-string (upcase (buffer-string)) "\n"))))
 
@@ -274,11 +286,10 @@ If PROPS are non-nil, they are used in place of default values."
     \\{wordel-mode-map}"
   (setq header-line-format (wordel--commands-text)))
 
-(define-key wordel-select-mode-map (kbd "n") 'wordel)
+(define-key wordel-select-mode-map (kbd "g") 'wordel)
 (define-key wordel-select-mode-map (kbd "h") 'wordel-help)
 (define-key wordel-select-mode-map (kbd "m") 'wordel-marathon-mode)
-;; Special mode's revert buffer binding is useless in this mode.
-(define-key wordel-select-mode-map (kbd "g") 'ignore)
+(define-key wordel-select-mode-map (kbd "w") 'wordel-choose-word-list)
 
 (defun wordel--insert-board ()
   "Insert the game board."
@@ -411,6 +422,16 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
       (goto-char (point-min))
       (pop-to-buffer-same-window (current-buffer)))))
 
+;;;###autoload
+(defun wordel-choose-word-list (path)
+  "Set `wordel-word-list-file' to file at PATH."
+  (interactive (list (read-file-name "Word list: "
+                                     wordel-words-dir wordel-word-list-file t)))
+  (setq wordel-word-list-file path)
+  (if (equal (buffer-name) wordel-buffer)
+      (setq header-line-format (wordel--commands-text))
+  (message "Wordel wordlist set to %S" (file-name-nondirectory path))))
+
 (defun wordel--row-to-word (row)
   "Return character display properties of ROW."
   (mapconcat
@@ -464,7 +485,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
                               :score! (+ rounds! (- limit! attempts!))))
               ((error)
                (wordel--display-message
-                "You BEAT THE DICTIONARY! Final Score: %d" score!)
+                "MARATHON COMPLETE! Final Score: %d" score!)
                (wordel--clean-up)))
           (wordel--display-message "You WON!"))
         (unless wordel-marathon-mode (wordel--clean-up)))
