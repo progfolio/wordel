@@ -408,6 +408,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
       (with-silent-modifications
         (erase-buffer)
         (insert (wordel--rules)))
+      (goto-char (point-min))
       (pop-to-buffer-same-window (current-buffer)))))
 
 (defun wordel--row-to-word (row)
