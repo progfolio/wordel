@@ -29,6 +29,7 @@
 ;;; Code:
 (require 'cl-lib)
 (require 'text-property-search)
+(eval-when-compile (require 'subr-x))
 
 ;;; Custom Options
 (defgroup wordel nil
@@ -57,7 +58,7 @@ It should accept one argument, the desired length of the words."
 
 (defcustom wordel-words-dir (expand-file-name "words/" wordel--source-dir)
   "Directory where word lists are stored.
-Wordel ships with multiple word lists. If you change this directory,
+Wordel ships with multiple word lists.  If you change this directory,
 you are responsible for populating it with word lists."
   :type 'directory)
 
@@ -466,14 +467,14 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
   (wordel--with-state wordel--game
     (when-let ((guess (wordel--current-word))
                ((wordel--valid-guess-p guess wordlen! words!)))
-      (setf (plist-get state! :attempts!) (cl-incf attempts!)
-            (plist-get state! :rows!)
+      (setf (cl-getf state! :attempts!) (cl-incf attempts!)
+            (cl-getf state! :rows!)
             (push (wordel--row (wordel--comparison guess word!)) rows!))
       (wordel--insert-board)
       (cond
        ((equal guess word!)
         ;; Prevent current row from being inserted
-        (setf (plist-get state! :rows!)
+        (setf (cl-getf state! :rows!)
               (append (make-list (- limit! attempts!)
                                  (wordel--row (make-list wordlen! " ")))
                       rows!))
@@ -498,7 +499,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
                           (when wordel-marathon-mode " Final Score: %d"))
                  ,@(delq nil (list word! (when wordel-marathon-mode score!)))))
         (wordel--clean-up))
-       (t (wordel--position-cursor (setf (plist-get state! :index!) 0)))))))
+       (t (wordel--position-cursor (setf (cl-getf state! :index!) 0)))))))
 
 (defun wordel--display-char (char)
   "Display CHAR in current box."
@@ -517,7 +518,7 @@ Otherwise whichever is closer."
     (wordel--position-cursor index!)
     (wordel--display-char character)
     (setf index! (wordel--clamp (cl-incf index!) 0 (1- (length word!)))
-          (plist-get state! :index!) index!)
+          (cl-getf state! :index!) index!)
     (wordel--position-cursor index!)))
 
 (defun wordel-delete-char ()
@@ -527,7 +528,7 @@ Move point to previous column."
   (wordel--with-state wordel--game
     (wordel--display-char " ")
     (setf index! (wordel--clamp (cl-decf index!) 0 (1- (length word!)))
-          (plist-get state! :index!) index!)
+          (cl-getf state! :index!) index!)
     (wordel--position-cursor index!)))
 
 (defun wordel--change-col (direction n)
@@ -536,7 +537,7 @@ Move point to previous column."
     (let ((index! (wordel--clamp
                    (if (eq direction 'prev) (cl-decf index! n) (cl-incf index! n))
                    0 (1- (length word!)))))
-      (setf (plist-get state! :index!) index!)
+      (setf (cl-getf state! :index!) index!)
       (wordel--position-cursor index!))))
 
 (defun wordel-next-column (&optional n)
