@@ -290,10 +290,13 @@ If PROPS are non-nil, they are used in place of default values."
     \\{wordel-mode-map}"
   (setq header-line-format (wordel--commands-text)))
 
-(define-key wordel-select-mode-map (kbd "g") 'wordel)
-(define-key wordel-select-mode-map (kbd "h") 'wordel-help)
-(define-key wordel-select-mode-map (kbd "m") 'wordel-marathon-mode)
-(define-key wordel-select-mode-map (kbd "w") 'wordel-choose-word-list)
+(defvar wordel-select-mode-map (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "g") 'wordel)
+                                 (define-key map (kbd "h") 'wordel-help)
+                                 (define-key map (kbd "m") 'wordel-marathon-mode)
+                                 (define-key map (kbd "w") 'wordel-choose-word-list)
+                                 map)
+  "Keymap for wordel-select-mode.")
 
 (defun wordel--insert-board ()
   "Insert the game board."
@@ -568,21 +571,24 @@ Move point to previous column."
     (wordel--clean-up)))
 
 ;;; Key bindings
-(define-key wordel-mode-map (kbd "M-h")     'wordel-help)
-(define-key wordel-mode-map (kbd "M-q")     'wordel-quit-game)
-(define-key wordel-mode-map (kbd "RET")     'wordel-submit-guess)
-(define-key wordel-mode-map (kbd "DEL")     'wordel-delete-char)
-(define-key wordel-mode-map (kbd "<up>")    'wordel-last-column)
-(define-key wordel-mode-map (kbd "<down>")  'wordel-first-column)
-(define-key wordel-mode-map (kbd "<left>")  'wordel-prev-column)
-(define-key wordel-mode-map (kbd "<right>") 'wordel-next-column)
-(when wordel-want-evil-row-navigation
-  (define-key wordel-mode-map (kbd "H") 'wordel-prev-column)
-  (define-key wordel-mode-map (kbd "L") 'wordel-next-column)
-  (define-key wordel-mode-map (kbd "0") 'wordel-first-column)
-  (define-key wordel-mode-map (kbd "^") 'wordel-first-column)
-  (define-key wordel-mode-map (kbd "$") 'wordel-last-column)
-  (define-key wordel-mode-map (kbd "E") 'wordel-last-column))
+(defvar wordle-mode-map (let ((map (make-sparse-keymap)))
+                          (define-key map (kbd "M-h")     'wordel-help)
+                          (define-key map (kbd "M-q")     'wordel-quit-game)
+                          (define-key map (kbd "RET")     'wordel-submit-guess)
+                          (define-key map (kbd "DEL")     'wordel-delete-char)
+                          (define-key map (kbd "<up>")    'wordel-last-column)
+                          (define-key map (kbd "<down>")  'wordel-first-column)
+                          (define-key map (kbd "<left>")  'wordel-prev-column)
+                          (define-key map (kbd "<right>") 'wordel-next-column)
+                          (when wordel-want-evil-row-navigation
+                            (define-key map (kbd "H") 'wordel-prev-column)
+                            (define-key map (kbd "L") 'wordel-next-column)
+                            (define-key map (kbd "0") 'wordel-first-column)
+                            (define-key map (kbd "^") 'wordel-first-column)
+                            (define-key map (kbd "$") 'wordel-last-column)
+                            (define-key map (kbd "E") 'wordel-last-column))
+                          map)
+  "Keymap for wordle-mode.")
 
 (defun wordel-integrity-p (player &rest integrity)
   "Return t if the PLAYER has INTEGRITY, nil otherwise."
@@ -600,7 +606,7 @@ Move point to previous column."
 
 (define-minor-mode wordel-integrity-mode
   "Disabling this mode may cause spiritual damage."
-  :lighter "wordel-integrity"
+  :lighter " wordel-integrity"
   (if wordel-integrity-mode
       (advice-add #'describe-variable :around #'wordel-integrity-p)
     (advice-remove #'describe-variable #'wordel-integrity-p)))
