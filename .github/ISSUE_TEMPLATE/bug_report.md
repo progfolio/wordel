@@ -23,5 +23,4 @@ Including a recipe which demonstrates the bug, and a copy of any error backtrace
 ### Version information
 
 * Emacs version: <!-- M-x emacs-version RET -->
-* Org mode version: <!-- M-x org-version RET -->
 * Operating system:
