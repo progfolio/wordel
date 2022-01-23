@@ -571,7 +571,7 @@ Move point to previous column."
     (wordel--clean-up)))
 
 ;;; Key bindings
-(defvar wordle-mode-map (let ((map (make-sparse-keymap)))
+(defvar wordel-mode-map (let ((map (make-sparse-keymap)))
                           (define-key map (kbd "M-h")     'wordel-help)
                           (define-key map (kbd "M-q")     'wordel-quit-game)
                           (define-key map (kbd "RET")     'wordel-submit-guess)
