@@ -19,11 +19,11 @@ You guess a word and each letter of your word will be color coded to reveal how 
 - =M-x wordel= or =M-x wordel-marathon=
 
 * Evil users
-You'll want to be in insert mode for wordel's modes:
-
+You'll want to be in insert mode for wordel's modes.
 
 #+begin_src emacs-lisp :lexical t
-(evil-set-initial-state 'wordel-mode        'insert)
-(evil-set-initial-state 'wordel-select-mode 'insert)
+(evil-make-intercept-map wordel-mode-map)
+(evil-make-intercept-map wordel-select-mode-map)
+(evil-set-initial-state  'wordel-mode 'insert)
+(evil-set-initial-state  'wordel-select-mode 'insert))
 #+end_src
-
