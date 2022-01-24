@@ -587,7 +587,11 @@ Move point to previous column."
   "Quit the current game."
   (interactive)
   (when-let ((word! (plist-get wordel--game :word!)))
-    (wordel--display-message "The word was %S, quitter." word!)
+    (apply #'wordel--display-message
+           (if wordel-marathon-mode
+               (list "You're not in marathon shape yet. The word was %S. Final Score: %d"
+                 word! (plist-get wordel--game :score!))
+             (list "The word was %S, quitter." word!)))
     (wordel--clean-up)))
 
 (defun wordel-integrity-p (player &rest integrity)
