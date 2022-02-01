@@ -27,3 +27,8 @@ You'll want to be in insert mode for wordel's modes.
 (evil-set-initial-state  'wordel-mode 'insert)
 (evil-set-initial-state  'wordel-select-mode 'insert))
 #+end_src
+
+** FAQ
+*** How do I add more word lists?
+Word lists are plain text files added under =wordel-words-dir=.
+There should be only one word per line.
