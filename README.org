@@ -1,5 +1,5 @@
 #+title: Wordel: [[https://www.powerlanguage.co.uk/wordle/][Wordle]] (aka Lingo) in Emacs
-[[https://melpa.org/#/doct][file:https://melpa.org/packages/wordel-badge.svg]]
+[[https://melpa.org/#/wordel][file:https://melpa.org/packages/wordel-badge.svg]]
 
 [[./demo.gif]]
 
