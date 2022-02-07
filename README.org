@@ -1,4 +1,5 @@
 #+title: Wordel: [[https://www.powerlanguage.co.uk/wordle/][Wordle]] (aka Lingo) in Emacs
+[[https://melpa.org/#/doct][file:https://melpa.org/packages/wordel-badge.svg]]
 
 [[./demo.gif]]
 
@@ -9,8 +10,15 @@ You guess a word and each letter of your word will be color coded to reveal how 
 
 ** With [[https://www.github.com/raxod502/straight.el][straight.el]]
 
+*** Directly
+
 #+begin_src emacs-lisp :lexical t
 (straight-use-package '(wordel :host github :repo "progfolio/wordel" :files (:defaults "words")))
+#+end_src
+
+*** via MELPA
+#+begin_src emacs-lisp :lexical t
+(straight-use-packge 'wordel)
 #+end_src
 
 ** Manually
