@@ -37,6 +37,11 @@
   :group 'games
   :prefix "wordel-")
 
+(defcustom wordel-show-letter-info t
+  "When non-nil, the alphabet is displayed below the game board.
+Each tile is shown with its hint face."
+  :type 'boolean)
+
 (defcustom wordel-word-length 5
   "Length of the puzzle word.
 If it is an int, words will be that length.
@@ -92,6 +97,10 @@ These are deleted from a puzzle word character."
 (defface wordel-correct
   '((t (:background "#538D4E")))
   "Face for a guessed letter which matches its position in the puzzle word.")
+
+(defface wordel-guessed
+  '((t (:background "#202020")))
+  "Face for a guessed letter which has no other hint information.")
 
 (defface wordel-almost
   '((t (:background "#BF9F3B")))
@@ -318,6 +327,32 @@ If PROPS are non-nil, they are used in place of default values."
     \\{wordel-mode-map}"
   (setq header-line-format (wordel--commands-text)))
 
+(defun wordel--letter-info (alphabet)
+  "Return list of hinted tiles for every letter in the ALPHABET."
+  (wordel--with-state wordel--game
+    (let ((guessed
+           (apply #'append
+                  (mapcar (lambda (row)
+                            (split-string (wordel--row-to-word row) "" 'omit-nulls))
+                          rows!)))
+          (alphabet (split-string alphabet "" 'omit-nulls)))
+      (cl-loop for letter in alphabet
+               collect (wordel--tile
+                        (if-let ((guess (member letter guessed)))
+                            (let* ((duplicates (cl-remove-if-not
+                                                (lambda (it) (equal (car guess) it))
+                                                guess))
+                                   (hints
+                                    (mapcar (lambda (guess)
+                                              (get-text-property 0 'hint guess))
+                                            duplicates)))
+                              (propertize (car duplicates) 'hint
+                                          (cond
+                                           ((member 'wordel-correct hints) 'wordel-correct)
+                                           ((member 'wordel-almost hints)  'wordel-almost)
+                                           (t                              'wordel-guessed))))
+                          (wordel--tile letter)))))))
+
 (defun wordel--insert-board ()
   "Insert the game board."
   (with-current-buffer (get-buffer-create wordel-buffer)
@@ -328,7 +363,12 @@ If PROPS are non-nil, they are used in place of default values."
         (goto-char (point-min))
         (insert (wordel--board (reverse rows!) wordlen! limit!))
         (insert (propertize (format "\n\n%s\n\n" (propertize " " 'message-area t)))
-                (propertize "\n " 'read-only t))))))
+                (propertize "\n " 'read-only t))
+        (when wordel-show-letter-info
+          (let ((letters (wordel--letter-info "ABCDEFGHIJKLMNOPQRSTUVWXYZ")))
+            (dotimes (i (length letters))
+              (when (zerop (% i 13)) (insert (propertize "\n" 'readonly t)))
+              (insert (propertize (concat (nth i letters) (propertize " " 'face 'wordel-spacer)) 'read-only t)))))))))
 
 (defun wordel--split-with-spaces (string)
   "Split STRING, keeping its spaces."
@@ -351,7 +391,7 @@ If PROPS are non-nil, they are used in place of default values."
                                         (not (string-match-p g guess (1+ i)))
                                         (not (member g matches)))
                                    'wordel-almost)
-                                  (t nil))))))
+                                  (t 'wordel-guessed))))))
 
 (defun wordel--rules ()
   "Return the rules string."
