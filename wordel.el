@@ -630,7 +630,7 @@ Move point to previous column."
     (apply #'wordel--display-message
            (if wordel-marathon-mode
                (list "You're not in marathon shape yet. The word was %S. Final Score: %d"
-                 word! (plist-get wordel--game :score!))
+                     word! (plist-get wordel--game :score!))
              (list "The word was %S, quitter." word!)))
     (wordel--clean-up)))
 
