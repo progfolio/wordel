@@ -370,16 +370,11 @@ If PROPS are non-nil, they are used in place of default values."
               (when (zerop (% i 13)) (insert (propertize "\n" 'readonly t)))
               (insert (propertize (concat (nth i letters) (propertize " " 'face 'wordel-spacer)) 'read-only t)))))))))
 
-(defun wordel--split-with-spaces (string)
-  "Split STRING, keeping its spaces."
-  (let ((s (split-string string ""))) (pop s) (butlast s)))
-
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
   (let* ((subjects (split-string subject "" 'omit-nulls))
-         ;; Keep spaces in complete rows that result from pause.
-         (guesses  (wordel--split-with-spaces guess))
-         (matches nil))
+         (guesses  (split-string guess "" 'omit-nulls))
+         (matches  nil))
     (cl-loop for i from 0 to (1- (length guesses))
              for g = (nth i guesses)
              for s = (nth i subjects)
@@ -506,7 +501,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
      (cond ((get-text-property 0 'index string)
             (or (get-text-property 0 'display string) " "))
            ((not (string-match-p " " string)) string)))
-   (wordel--split-with-spaces row)
+   (split-string row "" 'omit-nulls)
    ""))
 
 (defun wordel--current-word ()
