@@ -18,7 +18,7 @@ You guess a word and each letter of your word will be color coded to reveal how 
 
 *** via MELPA
 #+begin_src emacs-lisp :lexical t
-(straight-use-packge 'wordel)
+(straight-use-package 'wordel)
 #+end_src
 
 ** Manually
