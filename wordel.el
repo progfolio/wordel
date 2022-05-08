@@ -99,7 +99,7 @@ These are deleted from a puzzle word character."
   "Face for a guessed letter which matches its position in the puzzle word.")
 
 (defface wordel-guessed
-  '((t (:background "#202020")))
+  '((t (:background "#202020" :foreground "#606060")))
   "Face for a guessed letter which has no other hint information.")
 
 (defface wordel-almost
