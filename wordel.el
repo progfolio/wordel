@@ -376,19 +376,18 @@ If PROPS are non-nil, they are used in place of default values."
   "Return propertized GUESS character list compared against SUBJECT."
   (let* ((subjects (split-string subject "" 'omit-nulls))
          (guesses  (split-string guess "" 'omit-nulls))
-         (matches  nil))
-    (cl-loop for i from 0 to (1- (length guesses))
-             for g = (nth i guesses)
-             for s = (nth i subjects)
-             collect (propertize g 'hint
-                                 (cond
-                                  ((string-match-p g s)
-                                   (push g matches) 'wordel-correct)
-                                  ((and (string-match-p g subject)
-                                        (not (string-match-p g guess (1+ i)))
-                                        (not (member g matches)))
-                                   'wordel-almost)
-                                  (t 'wordel-guessed))))))
+         (non-matches nil))
+    (cl-mapc (lambda (s g) (unless (equal s g) (push s non-matches)))
+             subjects guesses)
+    (cl-mapcar (lambda (s g)
+                 (propertize g 'hint
+                             (cond
+                              ((string-match-p g s) 'wordel-correct)
+                              ((when-let ((i (cl-position g non-matches :test 'equal)))
+                                 (pop (nthcdr i non-matches)))
+                               'wordel-almost)
+                              (t 'wordel-guessed))))
+               subjects guesses)))
 
 (defun wordel--rules ()
   "Return the rules string."
