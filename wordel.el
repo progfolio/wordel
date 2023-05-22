@@ -306,7 +306,7 @@ If PROPS are non-nil, they are used in place of default values."
   "Keymap for wordle-mode.")
 
 (define-derived-mode wordel-mode fundamental-mode "Wordel"
-  "A word game based on 'Wordle' and/or 'Lingo'.
+  "A word game based on `Wordle' and/or `Lingo'.
 
     \\{wordel-mode-map}"
   (add-hook 'pre-command-hook #'wordel--filter-inputs nil t)
