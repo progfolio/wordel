@@ -115,7 +115,7 @@ These are deleted from a puzzle word character."
   "Default face for a wordel letter.")
 
 (defface wordel-spacer
-  '((t (:width ultra-condensed :height 0.1 :background nil)))
+  '((t (:width ultra-condensed :height 0.1)))
   "Face for space between letter boxes.")
 
 (defface wordel-default
