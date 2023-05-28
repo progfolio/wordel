@@ -374,16 +374,21 @@ If PROPS are non-nil, they are used in place of default values."
 
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
-  (cl-loop with guesses =  (split-string guess "" 'omit-nulls)
-           with matches = nil
-           for i from 0
-           for g in guesses
-           for match = (setf (alist-get g matches nil t #'equal)
-                             (string-match-p g subject (1+ (alist-get g matches -1 nil #'equal))))
-           collect (propertize g 'hint (if (not match) 'wordel-guessed
-                                         (if (eq (string-to-char g) (aref subject i))
-                                             'wordel-correct
-                                           'wordel-almost)))))
+  (cl-loop with non-matches = (cl-loop for s across subject
+                                       for g across guess
+                                       unless (= g s)
+                                       collect s)
+           for s across subject
+           for g across guess
+           collect (propertize (char-to-string g)
+                               'hint
+                               (if (= g s)
+                                   'wordel-correct
+                                 (if-let ((i (cl-position g non-matches)))
+                                     (progn
+                                       (pop (nthcdr i non-matches))
+                                       'wordel-almost)
+                                   'wordel-guessed)))))
 
 (defun wordel--rules ()
   "Return the rules string."
