@@ -311,7 +311,8 @@ If PROPS are non-nil, they are used in place of default values."
     \\{wordel-mode-map}"
   (add-hook 'pre-command-hook #'wordel--filter-inputs nil t)
   (setq header-line-format (wordel--commands-text))
-  (setq-local view-read-only nil)
+  (setq-local show-trailing-whitespace nil
+              view-read-only nil)
   (read-only-mode))
 
 (defvar wordel-select-mode-map (let ((map (make-sparse-keymap)))
@@ -326,7 +327,8 @@ If PROPS are non-nil, they are used in place of default values."
   "Mode to select the type of wordel game to play.
 
     \\{wordel-mode-map}"
-  (setq-local view-read-only nil)
+  (setq-local show-trailing-whitespace nil
+              view-read-only nil)
   (setq header-line-format (wordel--commands-text)))
 
 (defun wordel--letter-info (alphabet)
@@ -479,6 +481,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
   (interactive)
   (let ((b (concat wordel-buffer "<help>")))
     (with-current-buffer (get-buffer-create b)
+      (setq-local show-trailing-whitespace nil)
       (special-mode)
       (with-silent-modifications
         (erase-buffer)
