@@ -8,17 +8,16 @@ You guess a word and each letter of your word will be color coded to reveal how 
 
 * Install
 
-** With [[https://www.github.com/raxod502/straight.el][straight.el]]
-
-*** Directly
+** Use-package declaration
 
 #+begin_src emacs-lisp :lexical t
-(straight-use-package '(wordel :host github :repo "progfolio/wordel" :files (:defaults "words")))
-#+end_src
-
-*** via MELPA
-#+begin_src emacs-lisp :lexical t
-(straight-use-package 'wordel)
+(use-package wordel
+  ;; Via Elpaca:
+  :elpaca   (wordel :host github :repo "progfolio/wordel" :files (:defaults "words"))
+  ;; Via straight.el:
+  :straight (wordel :host github :repo "progfolio/wordel" :files (:defaults "words"))
+  ;; Via package.el
+  :ensure t)
 #+end_src
 
 ** Manually
