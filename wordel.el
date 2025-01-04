@@ -1,6 +1,6 @@
 ;;; wordel.el --- An Elisp implementation of "Wordle" (aka "Lingo")  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2022-2024  Nicholas Vollmer
+;; Copyright (C) 2022-2025  Nicholas Vollmer
 
 ;; Author:  Nicholas Vollmer <iarchivedmywholelife@gmail.com>
 ;; URL: https://github.com/progfolio/wordel
