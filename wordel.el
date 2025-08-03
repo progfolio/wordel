@@ -75,7 +75,7 @@ Each candidate should be on a separate line."
 
 (defcustom wordel-illegal-characters "[^A-Za-z]"
   "Regular expression matching illegal word characters.
-These are deleted from a puzzle word character."
+These are deleted from a puzzle words."
   :type 'regexp)
 
 (defcustom wordel-want-evil-row-navigation t
