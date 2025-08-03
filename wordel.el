@@ -181,9 +181,9 @@ These are deleted from a puzzle word character."
     (cl-delete-if-not (lambda (word) (wordel--legal-word-p word n))
                       (split-string (upcase (buffer-substring-no-properties (point-min) (point-max))) "\n"))))
 
-(defun wordel--random-word (candidates)
-  "Select a random word from CANDIDATES."
-  (nth (random (length candidates)) candidates))
+(defun wordel--random-word (words)
+  "Select a random word from a list of WORDS."
+  (nth (random (length words)) words))
 
 (defun wordel--pad (char)
   "Visually pad CHAR."
