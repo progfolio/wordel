@@ -194,7 +194,7 @@ These are deleted from a puzzle word character."
   "Return a tile from STRING.
 If BOX is non-nil, outline the tile with it."
   (let ((face (list :inherit (list 'wordel-default))))
-    (when-let ((hint (get-text-property 0 'hint string)))
+    (when-let* ((hint (get-text-property 0 'hint string)))
       (push hint (cadr face)))
     (push (or box 'wordel-box) (cadr face))
     (propertize (wordel--pad string) 'face face)))
@@ -277,11 +277,11 @@ If PROPS are non-nil, they are used in place of default values."
 
 (defun wordel--filter-inputs ()
   "Filter inputs during game play."
-  (when-let (wordel--game
-             ((eq real-this-command 'self-insert-command))
-             (input (this-command-keys))
-             ((or (not (string-match-p wordel-illegal-characters input))
-                  (member input '(" ")))))
+  (when-let* (wordel--game
+              ((eq real-this-command 'self-insert-command))
+              (input (this-command-keys))
+              ((or (not (string-match-p wordel-illegal-characters input))
+                   (member input '(" ")))))
     (setq this-command 'ignore)
     (wordel--input-char (upcase input))))
 
@@ -342,7 +342,7 @@ If PROPS are non-nil, they are used in place of default values."
           (alphabet (split-string alphabet "" 'omit-nulls)))
       (cl-loop for letter in alphabet
                collect (wordel--tile
-                        (if-let ((guess (member letter guessed)))
+                        (if-let* ((guess (member letter guessed)))
                             (let* ((duplicates (cl-remove-if-not
                                                 (lambda (it) (equal (car guess) it))
                                                 guess))
@@ -386,7 +386,7 @@ If PROPS are non-nil, they are used in place of default values."
                                'hint
                                (if (= g s)
                                    'wordel-correct
-                                 (if-let ((i (cl-position g non-matches)))
+                                 (if-let* ((i (cl-position g non-matches)))
                                      (progn
                                        (pop (nthcdr i non-matches))
                                        'wordel-almost)
@@ -432,7 +432,7 @@ STRING and OBJECTS are passed to `format', which see."
   (with-current-buffer wordel-buffer
     (save-excursion
       (goto-char (point-min))
-      (if-let ((area (text-property-search-forward 'message-area)))
+      (if-let* ((area (text-property-search-forward 'message-area)))
           (with-silent-modifications
             (put-text-property (prop-match-beginning area) (prop-match-end area)
                                'display (apply #'format string objects)))
@@ -528,7 +528,7 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
   "Submit the current guess."
   (interactive)
   (wordel--with-state wordel--game
-    (when-let ((guess (wordel--current-word))
+    (when-let* ((guess (wordel--current-word))
                ((wordel--valid-guess-p guess wordlen! words!)))
       (setf (cl-getf state! :attempts!) (cl-incf attempts!)
             (cl-getf state! :rows!)
@@ -626,7 +626,7 @@ Move point to previous column."
 (defun wordel-quit-game ()
   "Quit the current game."
   (interactive)
-  (when-let ((word! (plist-get wordel--game :word!)))
+  (when-let* ((word! (plist-get wordel--game :word!)))
     (apply #'wordel--display-message
            (if wordel-marathon-mode
                (list "You're not in marathon shape yet. The word was %S. Final Score: %d"
