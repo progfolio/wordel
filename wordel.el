@@ -160,7 +160,10 @@ These are deleted from a puzzle word character."
   "Return commands text."
   (let ((word-list (file-name-nondirectory wordel-word-list-file)))
     (concat
-     (propertize (concat "WORDEL" (when wordel-marathon-mode " MARATHON"))
+     (propertize (concat "WORDEL"
+                         (when wordel-marathon-mode
+                           (format " MARATHON ROUND %d"
+                                   (1+ (if wordel--game (wordel-game<-rounds wordel--game) 0)))))
                  'face '(:weight bold))
      " "
      (substitute-command-keys
