@@ -28,6 +28,7 @@
 
 ;;; Code:
 (require 'cl-lib)
+(require 'cl-macs)
 (require 'text-property-search)
 (eval-when-compile (require 'subr-x))
 
@@ -92,6 +93,27 @@ These are deleted from a puzzle word character."
 ;;;; Variables
 (defvar wordel-buffer    "*wordel*" "Name of the wordel buffer.")
 (defvar wordel--game nil "State of the game.")
+(cl-defstruct (wordel-game (:constructor wordel-game--create)
+                           (:type list) (:copier nil)
+                           (:named) (:conc-name wordel-game<-))
+  "Wordel game state."
+  (attempts 0)
+  (index 0)
+  (limit wordel-attempt-limit)
+  rows
+  (rounds 0)
+  (score 0)
+  (start (current-time))
+  (wordlen (wordel--wordlen))
+  words
+  word)
+
+(defun wordel-game-create (&rest state)
+  "Create a new `wordel-game' struct from STATE."
+  (let* ((wordlen (or (plist-get state :wordlen) (wordel--wordlen)))
+         (words (wordel--words wordlen))
+         (word (wordel--random-word words)))
+    (apply #'wordel-game--create (append state (list :wordlen wordlen :words words :word word)))))
 
 ;;;; Faces
 (defface wordel-correct
@@ -155,19 +177,6 @@ These are deleted from a puzzle word character."
                    'face '(:weight bold))
                 (format "Choose Word list (%s): \\[wordel-choose-word-list]" word-list))))
        " ")))))
-
-(defmacro wordel--with-state (state &rest body)
-  "Provide anaphoric bindings to variable STATE during BODY."
-  (declare (indent 1) (debug t))
-  `(let ((state! ,state))
-     (cl-destructuring-bind
-         (&key attempts! index! limit! rows! rounds!
-               score! start! word! words! wordlen!
-               &allow-other-keys)
-         ,state
-       (ignore state! attempts! index! limit! rows! rounds!
-               start! score! word! words! wordlen!) ;pacify bytecompiler
-       ,@body)))
 
 (defun wordel--legal-word-p (string length)
   "Return t if STRING is a legal word of LENGTH, nil otherwise."
@@ -248,33 +257,6 @@ If `wordel-word-length' is a range, return a random int in that range."
     (`(,min . ,max) (+ min (random (1+ (- max min)))))
     (_ (signal 'wrong-type-error '((numberp consp) wordel-word-length)))))
 
-(defun wordel--state (&optional props)
-  "Return game state plist.
-If PROPS are non-nil, they are used in place of default values."
-  (cl-destructuring-bind (&key
-                          (wordlen!  (wordel--wordlen))
-                          (words!    (wordel--words wordlen!))
-                          (word!     (or (wordel--random-word words!)
-                                         (error "Unable to find a puzzle word")))
-                          (limit!    wordel-attempt-limit)
-                          (attempts! 0)
-                          (rounds!   0)
-                          (score!    0)
-                          rows!
-                          &allow-other-keys &aux
-                          (start! (current-time)))
-      (copy-tree props)
-    (list :attempts! attempts!
-          :index!    0
-          :limit!    limit!
-          :rows!     rows!
-          :rounds!   rounds!
-          :score!    score!
-          :start!    start!
-          :word!     word!
-          :words!    words!
-          :wordlen!  wordlen!)))
-
 (defun wordel--filter-inputs ()
   "Filter inputs during game play."
   (when-let* (wordel--game
@@ -333,46 +315,45 @@ If PROPS are non-nil, they are used in place of default values."
 
 (defun wordel--letter-info (alphabet)
   "Return list of hinted tiles for every letter in the ALPHABET."
-  (wordel--with-state wordel--game
-    (let ((guessed
-           (apply #'append
-                  (mapcar (lambda (row)
-                            (split-string (wordel--row-to-word row) "" 'omit-nulls))
-                          rows!)))
-          (alphabet (split-string alphabet "" 'omit-nulls)))
-      (cl-loop for letter in alphabet
-               collect (wordel--tile
-                        (if-let* ((guess (member letter guessed)))
-                            (let* ((duplicates (cl-remove-if-not
-                                                (lambda (it) (equal (car guess) it))
-                                                guess))
-                                   (hints
-                                    (mapcar (lambda (guess)
-                                              (get-text-property 0 'hint guess))
-                                            duplicates)))
-                              (propertize (car duplicates) 'hint
-                                          (cond
-                                           ((member 'wordel-correct hints) 'wordel-correct)
-                                           ((member 'wordel-almost hints)  'wordel-almost)
-                                           (t                              'wordel-guessed))))
-                          (wordel--tile letter)))))))
+  (let ((guessed (apply #'append
+                        (mapcar (lambda (row)
+                                  (split-string (wordel--row-to-word row) "" 'omit-nulls))
+                                (wordel-game<-rows wordel--game))))
+        (alphabet (split-string alphabet "" 'omit-nulls)))
+    (cl-loop for letter in alphabet
+             collect (wordel--tile
+                      (if-let* ((guess (member letter guessed)))
+                          (let* ((duplicates (cl-remove-if-not
+                                              (lambda (it) (equal (car guess) it))
+                                              guess))
+                                 (hints
+                                  (mapcar (lambda (guess)
+                                            (get-text-property 0 'hint guess))
+                                          duplicates)))
+                            (propertize (car duplicates) 'hint
+                                        (cond
+                                         ((member 'wordel-correct hints) 'wordel-correct)
+                                         ((member 'wordel-almost hints)  'wordel-almost)
+                                         (t                              'wordel-guessed))))
+                        (wordel--tile letter))))))
 
 (defun wordel--insert-board ()
   "Insert the game board."
   (with-current-buffer (get-buffer-create wordel-buffer)
     (unless (derived-mode-p 'wordel-mode) (wordel-mode))
-    (wordel--with-state wordel--game
-      (with-silent-modifications
-        (erase-buffer)
-        (goto-char (point-min))
-        (insert (wordel--board (reverse rows!) wordlen! limit!))
-        (insert (propertize (format "\n\n%s\n\n" (propertize " " 'message-area t)))
-                (propertize "\n " 'read-only t))
-        (when wordel-show-letter-info
-          (let ((letters (wordel--letter-info "ABCDEFGHIJKLMNOPQRSTUVWXYZ")))
-            (dotimes (i (length letters))
-              (when (zerop (% i 13)) (insert (propertize "\n" 'readonly t)))
-              (insert (propertize (concat (nth i letters) (propertize " " 'face 'wordel-spacer)) 'read-only t)))))))))
+    (with-silent-modifications
+      (erase-buffer)
+      (goto-char (point-min))
+      (insert (wordel--board (reverse (wordel-game<-rows wordel--game))
+                             (wordel-game<-wordlen wordel--game)
+                             (wordel-game<-limit wordel--game)))
+      (insert (propertize (format "\n\n%s\n\n" (propertize " " 'message-area t)))
+              (propertize "\n " 'read-only t))
+      (when wordel-show-letter-info
+        (let ((letters (wordel--letter-info "ABCDEFGHIJKLMNOPQRSTUVWXYZ")))
+          (dotimes (i (length letters))
+            (when (zerop (% i 13)) (insert (propertize "\n" 'readonly t)))
+            (insert (propertize (concat (nth i letters) (propertize " " 'face 'wordel-spacer)) 'read-only t))))))))
 
 (defun wordel--comparison (guess subject)
   "Return propertized GUESS character list compared against SUBJECT."
@@ -461,12 +442,12 @@ It also must be a `member' of WORDS."
   "Start a new game.
 If STATE is non-nil, it is used in lieu of `wordel--game'."
   (interactive)
-  (wordel--with-state (setq wordel--game (wordel--state state))
-    (wordel--insert-board)
-    (with-current-buffer wordel-buffer
-      (unless wordel-i-am-a-cheater (wordel-integrity-mode))
-      (wordel--position-cursor index!)
-      (pop-to-buffer-same-window (current-buffer)))))
+  (setq wordel--game (apply #'wordel-game-create `(,@state)))
+  (wordel--insert-board)
+  (with-current-buffer wordel-buffer
+    (unless wordel-i-am-a-cheater (wordel-integrity-mode))
+    (wordel--position-cursor (wordel-game<-index wordel--game))
+    (pop-to-buffer-same-window (current-buffer))))
 
 ;;;###autoload
 (defun wordel-marathon ()
@@ -527,42 +508,47 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
 (defun wordel-submit-guess ()
   "Submit the current guess."
   (interactive)
-  (wordel--with-state wordel--game
-    (when-let* ((guess (wordel--current-word))
-               ((wordel--valid-guess-p guess wordlen! words!)))
-      (setf (cl-getf state! :attempts!) (cl-incf attempts!)
-            (cl-getf state! :rows!)
-            (push (wordel--row (wordel--comparison guess word!)) rows!))
+  (when-let* ((guess (wordel--current-word))
+              (wordlen (wordel-game<-wordlen wordel--game))
+              (word (wordel-game<-word wordel--game))
+              ((wordel--valid-guess-p guess wordlen
+                                      (wordel-game<-words wordel--game)))
+              (attempts (cl-incf (wordel-game<-attempts wordel--game)))
+              (limit (wordel-game<-limit wordel--game))
+              (score (wordel-game<-score wordel--game))
+              (rows (push (wordel--row (wordel--comparison guess word))
+                          (wordel-game<-rows wordel--game))))
+    (wordel--insert-board)
+    (cond
+     ((equal guess word)
+      ;; Prevent current row from being inserted
+      (setf (wordel-game<-rows wordel--game)
+            (append (make-list (- limit attempts)
+                               (wordel--row (make-list wordlen " ")))
+                    rows))
       (wordel--insert-board)
-      (cond
-       ((equal guess word!)
-        ;; Prevent current row from being inserted
-        (setf (cl-getf state! :rows!)
-              (append (make-list (- limit! attempts!)
-                                 (wordel--row (make-list wordlen! " ")))
-                      rows!))
-        (wordel--insert-board)
-        (if wordel-marathon-mode
-            (condition-case-unless-debug _
-                (wordel (list :rounds!  (cl-incf rounds!)
-                              :wordlen! (cl-incf wordlen!)
-                              :limit!   (if (zerop (mod rounds! 3))
-                                            (cl-decf limit!)
-                                          limit!)
-                              :score! (+ rounds! (- limit! attempts!))))
-              ((error)
-               (wordel--display-message
-                "MARATHON COMPLETE! Final Score: %d" score!)
-               (wordel--clean-up)))
-          (wordel--display-message "You WON!"))
-        (unless wordel-marathon-mode (wordel--clean-up)))
-       ((>= attempts! limit!)
-        (apply #'wordel--display-message
-               `(,(concat "YOU LOST! The word was %S."
-                          (when wordel-marathon-mode " Final Score: %d"))
-                 ,@(delq nil (list word! (when wordel-marathon-mode score!)))))
-        (wordel--clean-up))
-       (t (wordel--position-cursor (setf (cl-getf state! :index!) 0)))))))
+      (if wordel-marathon-mode
+          (condition-case-unless-debug _
+              (prog1
+                  (wordel (list :rounds (cl-incf (wordel-game<-rounds wordel--game))
+                                :wordlen (cl-incf (wordel-game<-wordlen wordel--game))
+                                :score (+ score (* (1+ (wordel-game<-rounds wordel--game))
+                                                   (- limit attempts)))
+                                :limit (if (zerop (mod (wordel-game<-rounds wordel--game) 3))
+                                           (cl-decf (wordel-game<-limit wordel--game)) limit)))
+                (with-current-buffer wordel-buffer (setq header-line-format (wordel--commands-text))))
+            ((error)
+             (wordel--display-message "MARATHON COMPLETE! Final Score: %d" score)
+             (wordel--clean-up)))
+        (wordel--display-message "You WON!"))
+      (unless wordel-marathon-mode (wordel--clean-up)))
+     ((>= attempts limit)
+      (apply #'wordel--display-message
+             `(,(concat "YOU LOST! The word was %S."
+                        (when wordel-marathon-mode " Final Score: %d"))
+               ,@(delq nil (list word (when wordel-marathon-mode score)))))
+      (wordel--clean-up))
+     (t (wordel--position-cursor (setf (wordel-game<-index wordel--game) 0))))))
 
 (defun wordel--display-char (char)
   "Display CHAR in current box."
@@ -575,43 +561,39 @@ If STATE is non-nil, it is used in lieu of `wordel--game'."
 Otherwise whichever is closer."
   (min (max n min) max))
 
-(defun wordel--input-char (character)
-  "Input CHARACTER in current column."
-  (wordel--with-state wordel--game
-    (wordel--position-cursor index!)
+(defun wordel--input-char (character &optional newpos)
+  "Input CHARACTER in current column. Move cursor to NEWPOS."
+  (let ((index (wordel-game<-index wordel--game)))
+    (wordel--position-cursor index)
     (wordel--display-char character)
-    (setf index! (wordel--clamp (cl-incf index!) 0 (1- (length word!)))
-          (cl-getf state! :index!) index!)
-    (wordel--position-cursor index!)))
+    (wordel--position-cursor
+     (setf (wordel-game<-index wordel--game)
+           (wordel--clamp (cl-incf index (or newpos 1)) 0
+                          (1- (wordel-game<-wordlen wordel--game)))))))
 
 (defun wordel-delete-char ()
   "Delete the character in the current column.
 Move point to previous column."
   (interactive)
-  (wordel--with-state wordel--game
-    (wordel--display-char " ")
-    (setf index! (wordel--clamp (cl-decf index!) 0 (1- (length word!)))
-          (cl-getf state! :index!) index!)
-    (wordel--position-cursor index!)))
+  (when (equal (get-text-property (point) 'display) " ") (wordel--change-col -1))
+  (wordel--input-char " " 0))
 
-(defun wordel--change-col (direction n)
-  "Move cursor in DIRECTION N columns."
-  (wordel--with-state wordel--game
-    (let ((index! (wordel--clamp
-                   (if (eq direction 'prev) (cl-decf index! n) (cl-incf index! n))
-                   0 (1- (length word!)))))
-      (setf (cl-getf state! :index!) index!)
-      (wordel--position-cursor index!))))
+(defun wordel--change-col (n)
+  "Move cursor N columns."
+  (wordel--position-cursor
+   (setf (wordel-game<-index wordel--game)
+         (wordel--clamp (cl-incf (wordel-game<-index wordel--game) n) 0
+                        (1- (length (wordel-game<-word wordel--game)))))))
 
 (defun wordel-next-column (&optional n)
   "Move forward N columns."
   (interactive "p")
-  (wordel--change-col 'next n))
+  (wordel--change-col (* n 1)))
 
 (defun wordel-prev-column (&optional n)
   "Move forward N columns."
   (interactive "p")
-  (wordel--change-col 'prev n))
+  (wordel--change-col (* n -1)))
 
 (defun wordel-last-column ()
   "Move cursor to last column."
@@ -626,12 +608,12 @@ Move point to previous column."
 (defun wordel-quit-game ()
   "Quit the current game."
   (interactive)
-  (when-let* ((word! (plist-get wordel--game :word!)))
+  (when-let* ((word (wordel-game<-word wordel--game)))
     (apply #'wordel--display-message
            (if wordel-marathon-mode
                (list "You're not in marathon shape yet. The word was %S. Final Score: %d"
-                     word! (plist-get wordel--game :score!))
-             (list "The word was %S, quitter." word!)))
+                     word (wordel-game<-score wordel--game))
+             (list "The word was %S, quitter." word)))
     (wordel--clean-up)))
 
 (defun wordel-integrity-p (player &rest integrity)
