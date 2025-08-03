@@ -175,11 +175,11 @@ These are deleted from a puzzle word character."
        (not (string-match-p wordel-illegal-characters string))))
 
 (defun wordel-local-words (n)
-  "Return a puzzle word N letters long from `wordel-word-file'."
+  "Return a list of words N letters long from `wordel-word-file'."
   (with-temp-buffer
     (insert-file-contents wordel-word-list-file)
     (cl-delete-if-not (lambda (word) (wordel--legal-word-p word n))
-                      (split-string (upcase (buffer-string)) "\n"))))
+                      (split-string (upcase (buffer-substring-no-properties (point-min) (point-max))) "\n"))))
 
 (defun wordel--random-word (candidates)
   "Select a random word from CANDIDATES."
